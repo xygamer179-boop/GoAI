@@ -1,0 +1,528 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoAi · Manager v5</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;overflow:hidden}
+body{background:#020817;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif}
+.mesh{position:fixed;inset:0;background:radial-gradient(ellipse at 15% 50%,rgba(99,102,241,.2) 0,transparent 55%),radial-gradient(ellipse at 85% 15%,rgba(6,182,212,.14) 0,transparent 52%),radial-gradient(ellipse at 50% 90%,rgba(139,92,246,.14) 0,transparent 50%);animation:mesh 18s ease-in-out infinite alternate;pointer-events:none;z-index:0}
+@keyframes mesh{0%{opacity:.5;transform:scale(1)}100%{opacity:1;transform:scale(1.05)}}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(99,102,241,.28);border-radius:3px}
+.bub:hover .cpb{opacity:1!important}
+summary{list-style:none}summary::-webkit-details-marker{display:none}
+</style>
+</head>
+<body>
+<div class="mesh"></div>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useCallback,useRef,useMemo}=React;
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const PREVL=new Set(['html','js','javascript','python','py','java','c','cpp','c++']);
+const RULES={
+  groq1:     {role:'Speed Coder',  modelName:'Llama-3.3-70B',          prov:'Groq #1',       s:'fast code gen',          tok:2000,c:'#06b6d4',e:'⚡'},
+  groq2:     {role:'Manager',      modelName:'Llama-3.3-70B',          prov:'Groq #2',       s:'orchestration',          tok:6000,c:'#10b981',e:'🎯',isManager:true},
+  gemini1:   {role:'Architect',    modelName:'Gemini 2.5 Flash',       prov:'Google',        s:'system design',          tok:8192,c:'#8b5cf6',e:'🏗️'},
+  gemini2:   {role:'Reviewer',     modelName:'Gemini 2.0 Flash Lite',  prov:'Google',        s:'bug detection',          tok:8192,c:'#f59e0b',e:'🔍'},
+  gemini3:   {role:'Doc Writer',   modelName:'Gemini 2.5 Flash',       prov:'Google',        s:'docs & comments',        tok:8192,c:'#ec4899',e:'📝'},
+  openrouter:{role:'MiniMax-M1',   modelName:'MiniMax-M1',             prov:'OpenRouter',    s:'deep reasoning',         tok:4000,c:'#6366f1',e:'🧩'},
+  openrouter2:{role:'Llama-Free',  modelName:'Llama-3.3-70B Free',     prov:'OpenRouter',    s:'free 70B reasoning',     tok:4096,c:'#22c55e',e:'🆓'},
+  github1:   {role:'Full-Stack',   modelName:'GPT-4.1-mini',           prov:'GitHub',        s:'web development',        tok:3000,c:'#14b8a6',e:'🌐'},
+  github2:   {role:'Senior Eng',   modelName:'GPT-4o',                 prov:'GitHub',        s:'production code',        tok:4000,c:'#a855f7',e:'👨‍💻'},
+  sambanova: {role:'Generator',    modelName:'Llama-3.3-70B',          prov:'SambaNova',     s:'high-throughput',        tok:4096,c:'#f97316',e:'⚙️'},
+  bytez:     {role:'Qwen',         modelName:'Qwen2.5-72B',            prov:'Bytez',         s:'open-source specialist', tok:3000,c:'#84cc16',e:'🔬'},
+  duckduckgo:{role:'Haiku·Free',   modelName:'Claude 3.5 Haiku',       prov:'DuckDuckGo',    s:'free Claude Haiku',      tok:2000,c:'#ef4444',e:'🦆'}
+};
+const MGR='groq2';
+const S=v=>String(v||'');
+const getMemCtx=m=>m.length?'\n[History]\n'+m.slice(-5).map((x,i)=>`${i+1}.[${x.src||'?'}] ${x.q||''}`).join('\n'):'';
+const buildSys=(pid,sub,mem=[])=>{
+  const r=RULES[pid]||RULES.groq1;
+  const base=`You are ${r.modelName} (${r.role}) in GoAi multi-AI system. Provider: ${r.prov}.\nNEVER truncate. NEVER write '...'. NEVER write '//rest of code'. ALWAYS close every \`\`\` block. End with [COMPLETE].${getMemCtx(mem)}`;
+  return sub?(base+'\n\nYour specific task:\n'+sub):base;
+};
+const checkOk=t=>{
+  if(!t||t.length<50)return{ok:false,issue:'too short'};
+  if((t.match(/```/g)||[]).length%2!==0)return{ok:false,issue:'unclosed ``` block'};
+  if(/(\.\.\.|…)\s*$/.test(t.trim()))return{ok:false,issue:'truncated'};
+  if(/\/\/\s*(rest|todo|continue|implement|add more)/i.test(t))return{ok:false,issue:'placeholder comment'};
+  return{ok:true,issue:''};
+};
+const getHist=(msgs,n=3)=>msgs.filter(m=>m.role&&(m.role==='user'||m.role==='ai')&&m.text).slice(-(n*2)).map(m=>({role:m.role==='ai'?'assistant':'user',content:S(m.text).slice(0,600)}));
+
+async function api(pid,sys,msgs,tok){
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:pid,systemPrompt:S(sys).slice(0,12000),messages:(msgs||[]).map(m=>({role:m.role,content:S(m.content).slice(0,18000)})),maxTokens:tok||RULES[pid]?.tok||2000})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||'HTTP '+r.status);
+  if(!d.text)throw new Error('Empty from '+pid);
+  return d.text;
+}
+async function doMem(prompt,src){
+  try{const r=await fetch('/api/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:S(prompt).slice(0,500)})});const d=await r.json();if(d?.summary)return{q:d.summary,src:src||'user',t:Date.now()};}catch{}
+  return null;
+}
+function parseParts(txt){
+  const str=S(txt);if(!str)return[{t:'txt',c:''}];
+  const rx=/```(\w*)\n([\s\S]*?)```/g;const pts=[];let li=0,m;
+  while((m=rx.exec(str))!==null){if(m.index>li)pts.push({t:'txt',c:str.slice(li,m.index)});pts.push({t:'code',l:m[1]||'',c:m[2]||''});li=rx.lastIndex;}
+  if(li<str.length)pts.push({t:'txt',c:str.slice(li)});
+  return pts.length?pts:[{t:'txt',c:str}];
+}
+function MsgContent({text,onPv}){
+  const[cpd,setCpd]=useState({});
+  const cp=(i,c)=>{try{navigator.clipboard.writeText(c||'');}catch{}setCpd(p=>({...p,[i]:1}));setTimeout(()=>setCpd(p=>({...p,[i]:0})),1400);};
+  return(
+    <div>
+      {parseParts(text).map((p,i)=>p.t==='txt'
+        ?<div key={i} style={{whiteSpace:'pre-wrap',lineHeight:1.7,wordBreak:'break-word'}}>{p.c}</div>
+        :<div key={i} style={{margin:'4px 0'}}>
+          <div style={{display:'flex',gap:4,padding:'3px 0',flexWrap:'wrap',alignItems:'center'}}>
+            <button onClick={()=>cp(i,p.c)} style={{background:'rgba(99,102,241,.2)',border:'1px solid rgba(99,102,241,.35)',borderRadius:14,padding:'2px 8px',fontSize:10,cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit'}}>{cpd[i]?'✅':'📋'}</button>
+            {PREVL.has((p.l||'').toLowerCase())&&onPv&&<button onClick={()=>onPv(p.c,p.l)} style={{background:'rgba(6,182,212,.14)',border:'1px solid rgba(6,182,212,.32)',borderRadius:14,padding:'2px 8px',fontSize:10,cursor:'pointer',color:'#67e8f9',fontFamily:'inherit'}}>▶ Preview</button>}
+            <span style={{fontSize:9,opacity:.3,fontFamily:"'JetBrains Mono',monospace"}}>{p.l||'code'}</span>
+          </div>
+          <pre style={{background:'rgba(2,6,20,.92)',border:'1px solid rgba(99,102,241,.18)',borderRadius:11,padding:12,overflowX:'auto',margin:'1px 0 4px',lineHeight:1.55}}><code style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:'#a5b4fc'}}>{p.c}</code></pre>
+        </div>
+      )}
+    </div>
+  );
+}
+function WorkerLog({label,ok,text,onPv}){
+  const[open,setOpen]=useState(false);
+  return(
+    <details style={{border:'1px solid rgba(99,102,241,.14)',borderRadius:11,marginBottom:3,alignSelf:'flex-start',maxWidth:'95%',overflow:'hidden'}} onToggle={e=>setOpen(e.currentTarget.open)}>
+      <summary style={{padding:'6px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:7,fontSize:12,background:open?'rgba(99,102,241,.06)':'transparent',userSelect:'none',color:'#475569'}}>
+        <span>{ok?'✅':'⚠️'}</span><b style={{color:'#818cf8'}}>Worker:</b>
+        <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{label||'AI'}</span>
+        <span style={{fontSize:8,opacity:.35}}>{open?'▲':'▼'}</span>
+      </summary>
+      {open&&<div style={{padding:'9px 12px',borderTop:'1px solid rgba(99,102,241,.1)',maxHeight:240,overflowY:'auto',fontSize:13}}><MsgContent text={text||''} onPv={onPv}/></div>}
+    </details>
+  );
+}
+function CommLog({comms}){
+  const[open,setOpen]=useState(true);
+  if(!Array.isArray(comms)||!comms.length)return null;
+  return(
+    <details open={open} style={{border:'1px solid rgba(245,158,11,.2)',borderRadius:11,marginBottom:3,alignSelf:'flex-start',maxWidth:'95%',overflow:'hidden'}} onToggle={e=>setOpen(e.currentTarget.open)}>
+      <summary style={{padding:'6px 12px',cursor:'pointer',display:'flex',alignItems:'center',gap:7,fontSize:12,background:'rgba(245,158,11,.05)',userSelect:'none',color:'#f59e0b'}}>
+        <b>💬 AI Pre-Task Discussion ({comms.length})</b>
+        <span style={{fontSize:8,opacity:.4,marginLeft:'auto'}}>{open?'▲':'▼'}</span>
+      </summary>
+      <div style={{padding:'9px 12px',borderTop:'1px solid rgba(245,158,11,.12)',display:'flex',flexDirection:'column',gap:7}}>
+        {comms.map((c,i)=>{const r=c?.pid?RULES[c.pid]:null;return(
+          <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start'}}>
+            <span style={{fontSize:14,flexShrink:0,lineHeight:1.4}}>{r?.e||'·'}</span>
+            <div>
+              <span style={{fontSize:9.5,color:'#fbbf24',fontWeight:700}}>{r?.modelName||S(c?.pid)||'AI'} </span>
+              <span style={{fontSize:9,color:'#475569'}}>({r?.role||'worker'})</span>
+              <div style={{fontSize:12.5,color:'#e2e8f0',lineHeight:1.5,marginTop:2}}>"{S(c?.text)}"</div>
+            </div>
+          </div>
+        );})}
+      </div>
+    </details>
+  );
+}
+// ── ModelPickerBtn: just the pill button, NO overlay ────────────
+function ModelPickerBtn({pref,provs,onClick}){
+  const cur=RULES[pref]||{};
+  return(
+    <button onClick={onClick} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(99,102,241,.12)',border:'1px solid rgba(99,102,241,.32)',borderRadius:20,padding:'5px 11px 5px 8px',cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',flexShrink:0,maxWidth:200,transition:'all .15s'}}>
+      <span style={{width:7,height:7,borderRadius:'50%',background:provs[pref]?.available?'#10b981':'#334155',flexShrink:0,transition:'background .2s'}}/>
+      <span style={{fontSize:15,lineHeight:1,flexShrink:0}}>{cur.e||'·'}</span>
+      <div style={{minWidth:0,textAlign:'left'}}>
+        <div style={{fontSize:11.5,fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cur.role||pref}</div>
+        <div style={{fontSize:8.5,opacity:.45,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cur.modelName||''}</div>
+      </div>
+      <span style={{fontSize:9,opacity:.35,flexShrink:0}}>▾</span>
+    </button>
+  );
+}
+// ── ModelSheet: rendered at App root, avoids stacking context bug ─
+function ModelSheet({open,onClose,provs,pref,setPref}){
+  if(!open)return null;
+  const avCount=Object.values(provs).filter(v=>v.available).length;
+  const total=Object.keys(provs).length;
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:9990,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(0,0,0,.7)'}}/>
+      <div style={{position:'relative',background:'rgba(4,8,20,.99)',borderTop:'1px solid rgba(99,102,241,.4)',borderRadius:'22px 22px 0 0',maxHeight:'80vh',display:'flex',flexDirection:'column',animation:'slideUp .22s ease',boxShadow:'0 -20px 60px rgba(0,0,0,.85)'}}>
+        <div style={{width:36,height:4,background:'rgba(99,102,241,.35)',borderRadius:2,margin:'10px auto 0',flexShrink:0}}/>
+        <div style={{padding:'10px 16px 8px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderBottom:'1px solid rgba(99,102,241,.12)'}}>
+          <div>
+            <div style={{fontWeight:800,color:'#a5b4fc',fontSize:14}}>Select AI Model</div>
+            <div style={{fontSize:9.5,color:'#334155',marginTop:1}}>{avCount}/{total} available · tap outside to close</div>
+          </div>
+          <button onClick={onClose} style={{background:'rgba(99,102,241,.15)',border:'1px solid rgba(99,102,241,.3)',borderRadius:14,padding:'4px 12px',cursor:'pointer',color:'#c4b5fd',fontSize:11,fontFamily:'inherit'}}>✕ Done</button>
+        </div>
+        <div style={{overflowY:'auto',padding:'6px 9px 40px',display:'flex',flexDirection:'column',gap:3}}>
+          {Object.entries(provs).map(([pid,info])=>{
+            const r=RULES[pid]||{};const sel=pref===pid;
+            return(
+              <button key={pid} onClick={()=>{setPref(pid);onClose();}} style={{display:'flex',alignItems:'center',gap:9,background:sel?'rgba(99,102,241,.22)':'rgba(255,255,255,.02)',border:'1px solid '+(sel?'rgba(99,102,241,.5)':'rgba(99,102,241,.07)'),borderRadius:13,padding:'9px 11px',cursor:'pointer',textAlign:'left',fontFamily:'inherit',width:'100%'}}>
+                <span style={{width:7,height:7,borderRadius:'50%',background:info.available?'#10b981':'#1e2d3d',boxShadow:info.available?'0 0 0 2px rgba(16,185,129,.22)':'none',flexShrink:0}}/>
+                <span style={{fontSize:18,lineHeight:1,flexShrink:0}}>{r.e||'·'}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+                    <span style={{fontSize:12.5,fontWeight:sel?700:500,color:sel?'#c4b5fd':'#e2e8f0'}}>{r.role||pid}</span>
+                    {info.isManager&&<span style={{fontSize:7.5,background:'rgba(16,185,129,.2)',borderRadius:5,padding:'0 4px',color:'#6ee7b7',fontWeight:700}}>MGR</span>}
+                  </div>
+                  <div style={{fontSize:10,marginTop:1}}><span style={{color:r.c||'#64748b'}}>{r.modelName||pid}</span><span style={{color:'#334155',opacity:.7}}> · {r.prov||''}</span></div>
+                  <div style={{fontSize:9,color:'#374151',marginTop:1}}>{r.s||''}</div>
+                </div>
+                {sel&&<span style={{color:'#818cf8',fontSize:13,flexShrink:0}}>✓</span>}
+                {!info.available&&<span style={{fontSize:8.5,color:'#2d3748',flexShrink:0,background:'rgba(30,41,59,.6)',borderRadius:5,padding:'1px 5px'}}>no key</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+function PvModal({pv,onClose}){
+  if(!pv)return null;
+  const{code,lang}=pv;const l=(lang||'').toLowerCase();
+  const pm={python:'3',py:'3',java:'java',c:'c',cpp:'cpp','c++':'cpp'};
+  const jsDoc=`<!DOCTYPE html><html><head><style>body{font-family:'JetBrains Mono',monospace;font-size:12px;padding:14px;background:#06080f;color:#d4d4d4}div{margin:3px 0}.e{color:#f48771}.w{color:#fcd34d}.o{color:#4ec9b0}</style></head><body><div id="o"></div><script>const _o=document.getElementById('o');const _p=(s,c)=>{const d=document.createElement('div');d.className=c||'o';d.textContent=typeof s==='object'?JSON.stringify(s,null,2):String(s);_o.appendChild(d);};console.log=(...a)=>_p(a.join(' '));console.warn=(...a)=>_p(a.join(' '),'w');console.error=(...a)=>_p(a.join(' '),'e');try{${code||''}}catch(e){_p('Error: '+e.message,'e');}<\/script></body></html>`;
+  return(
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.88)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9995,padding:12}}>
+      <div style={{background:'rgba(4,8,20,.99)',border:'1px solid rgba(99,102,241,.38)',borderRadius:20,width:'100%',maxWidth:940,height:'86vh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        <div style={{padding:'10px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(99,102,241,.16)',flexShrink:0}}>
+          <span style={{fontWeight:700,color:'#a5b4fc',fontSize:13}}>▶ {(lang||'').toUpperCase()} Preview</span>
+          <button onClick={onClose} style={{background:'rgba(99,102,241,.16)',border:'1px solid rgba(99,102,241,.35)',borderRadius:14,padding:'3px 12px',cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',fontSize:12}}>✕</button>
+        </div>
+        <div style={{flex:1,overflow:'hidden'}}>
+          {l==='html'&&<iframe style={{width:'100%',height:'100%',border:'none'}} sandbox="allow-scripts allow-same-origin allow-forms" srcDoc={code||''}/>}
+          {(l==='js'||l==='javascript')&&<iframe style={{width:'100%',height:'100%',border:'none'}} sandbox="allow-scripts" srcDoc={jsDoc}/>}
+          {pm[l]&&<iframe style={{width:'100%',height:'100%',border:'none'}} src={`https://pythontutor.com/iframe-embed.html#code=${encodeURIComponent(code||'')}&py=${pm[l]}&curInstr=0&verticalStack=false`}/>}
+          {!pm[l]&&l!=='html'&&l!=='js'&&l!=='javascript'&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#334155',flexDirection:'column',gap:10}}><span style={{fontSize:36}}>🔍</span><span>No preview for {lang}</span></div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+function MemDrawer({mem,open,onClose,onClear}){
+  return(
+    <>
+      {open&&<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:9980}}/>}
+      <div style={{position:'fixed',right:0,top:0,bottom:0,width:285,background:'rgba(4,8,20,.99)',border:'1px solid rgba(99,102,241,.22)',borderRight:'none',borderRadius:'16px 0 0 16px',zIndex:9981,transform:open?'translateX(0)':'translateX(100%)',transition:'transform .28s cubic-bezier(.4,0,.2,1)',display:'flex',flexDirection:'column',boxShadow:'-10px 0 40px rgba(0,0,0,.6)'}}>
+        <div style={{padding:'12px 14px',borderBottom:'1px solid rgba(99,102,241,.14)',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
+          <span style={{fontWeight:800,color:'#a5b4fc',fontSize:13}}>🧠 QMR ({mem.length})</span>
+          <div style={{display:'flex',gap:5}}>
+            <button onClick={onClear} style={{background:'rgba(239,68,68,.14)',border:'1px solid rgba(239,68,68,.3)',borderRadius:12,padding:'2px 8px',cursor:'pointer',color:'#fca5a5',fontSize:10,fontFamily:'inherit'}}>🗑</button>
+            <button onClick={onClose} style={{background:'rgba(99,102,241,.14)',border:'1px solid rgba(99,102,241,.3)',borderRadius:12,padding:'2px 8px',cursor:'pointer',color:'#c4b5fd',fontSize:10,fontFamily:'inherit'}}>✕</button>
+          </div>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:8,display:'flex',flexDirection:'column',gap:5}}>
+          {!mem.length&&<p style={{color:'#1e293b',fontStyle:'italic',textAlign:'center',marginTop:40,fontSize:12}}>No memories yet.</p>}
+          {mem.slice().reverse().map((m,i)=>(
+            <div key={i} style={{background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.12)',borderRadius:10,padding:'6px 9px'}}>
+              <div style={{display:'flex',gap:4,marginBottom:3,alignItems:'center'}}>
+                <span style={{fontSize:8,background:'rgba(99,102,241,.22)',borderRadius:5,padding:'1px 5px',color:'#a5b4fc'}}>{m?.src||'?'}</span>
+                <span style={{fontSize:8,color:'#1e293b',marginLeft:'auto'}}>{m?.t?new Date(m.t).toLocaleTimeString():''}</span>
+              </div>
+              <p style={{fontSize:11.5,color:'#cbd5e1',lineHeight:1.5}}>{m?.q||''}</p>
+            </div>
+          ))}
+        </div>
+        <div style={{padding:'6px 12px',borderTop:'1px solid rgba(99,102,241,.08)',fontSize:8.5,color:'#1e293b',textAlign:'center'}}>Anti-Gajini Quick Memory Reference</div>
+      </div>
+    </>
+  );
+}
+function Typing({text}){
+  return(
+    <div style={{alignSelf:'flex-start',display:'flex',alignItems:'center',gap:8,padding:'7px 12px',background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.14)',borderRadius:'5px 16px 16px 16px',fontSize:12,color:'#64748b',animation:'msgIn .2s ease',maxWidth:'88%'}}>
+      <div style={{display:'flex',gap:3,flexShrink:0}}>{[0,1,2].map(i=><span key={i} style={{width:4,height:4,borderRadius:'50%',background:'#818cf8',display:'inline-block',animation:'blink 1.4s ease-in-out infinite',animationDelay:i*.2+'s'}}/>)}</div>
+      <span>{text||'...'}</span>
+    </div>
+  );
+}
+const BS={
+  user:{bg:'rgba(6,182,212,.09)',bd:'rgba(6,182,212,.28)',se:'flex-end',br:'22px 6px 22px 22px'},
+  ai:  {bg:'rgba(139,92,246,.08)',bd:'rgba(139,92,246,.26)',se:'flex-start',br:'6px 22px 22px 22px'},
+  mgr: {bg:'rgba(16,185,129,.09)',bd:'rgba(16,185,129,.36)',se:'flex-start',br:'6px 22px 22px 22px'},
+  disc:{bg:'rgba(245,158,11,.07)',bd:'rgba(245,158,11,.3)', se:'flex-start',br:'6px 22px 22px 22px'},
+  warn:{bg:'rgba(239,68,68,.07)', bd:'rgba(239,68,68,.3)',  se:'flex-start',br:'6px 22px 22px 22px',tc:'#fca5a5'},
+  meta:{bg:'transparent',          bd:'transparent',          se:'flex-start',tc:'#334155',fi:'italic'}
+};
+function Bubble({msg,onPv}){
+  const[cpd,setCpd]=useState(false);
+  if(msg.isLog)return<WorkerLog label={S(msg.label)||'Worker'} ok={!!msg.ok} text={S(msg.text)} onPv={onPv}/>;
+  if(msg.isComm)return<CommLog comms={msg.comms||[]}/>;
+  const b=BS[msg.role]||BS.meta;
+  return(
+    <div className="bub" style={{maxWidth:'93%',alignSelf:b.se||'flex-start',animation:'msgIn .2s ease',position:'relative'}}>
+      <div style={{padding:'10px 13px',borderRadius:b.br||'6px 22px 22px 22px',background:b.bg||'transparent',border:'1px solid '+(b.bd||'transparent'),color:b.tc||'#e2e8f0',fontStyle:b.fi||'normal',fontSize:'.9rem',lineHeight:1.65}}>
+        <MsgContent text={S(msg.text)} onPv={onPv}/>
+      </div>
+      {msg.role!=='meta'&&msg.role!=='warn'&&msg.text&&(
+        <button className="cpb" onClick={()=>{try{navigator.clipboard.writeText(S(msg.text));}catch{}setCpd(true);setTimeout(()=>setCpd(false),1400);}} style={{position:'absolute',top:5,right:5,opacity:0,background:'rgba(8,15,30,.92)',border:'1px solid rgba(99,102,241,.3)',borderRadius:11,padding:'1px 6px',fontSize:9,cursor:'pointer',color:'#a5b4fc',transition:'opacity .18s'}}>{cpd?'✅':'📋'}</button>
+      )}
+    </div>
+  );
+}
+function App(){
+  const[msgs,setMsgs]=useState([]);
+  const[inp,setInp]=useState('');
+  const[mode,setMode]=useState('fast');
+  const[pref,setPref]=useState('groq1');
+  const[stat,setStat]=useState({t:'Connecting...',c:''});
+  const[provs,setProvs]=useState({});
+  const[mem,setMem]=useState([]);
+  const[memOpen,setMemOpen]=useState(false);
+  const[pickerOpen,setPickerOpen]=useState(false);
+  const[pv,setPv]=useState(null);
+  const[busy,setBusy]=useState(false);
+  const[typing,setTyping]=useState('');
+  const chatRef=useRef(null);
+  const inpRef=useRef(null);
+  const avail=useMemo(()=>Object.entries(provs).filter(([,v])=>v.available).map(([k])=>k),[provs]);
+
+  useEffect(()=>{
+    fetch('/api/providers').then(r=>r.json()).then(d=>{setProvs(d);setStat({t:'Ready · '+Object.values(d).filter(v=>v.available).length+' AIs',c:'good'});}).catch(()=>setStat({t:'⚠️ Server offline — run: node server.js',c:'bad'}));
+    try{const s=localStorage.getItem('goai_v5_msgs');if(s){const p=JSON.parse(s);if(Array.isArray(p))setMsgs(p);}}catch{}
+    try{const s=localStorage.getItem('goai_v5_mem');if(s){const p=JSON.parse(s);if(Array.isArray(p))setMem(p);}}catch{}
+  },[]);
+  useEffect(()=>{if(chatRef.current)chatRef.current.scrollTop=chatRef.current.scrollHeight;},[msgs,typing]);
+
+  // Only save real messages — NOT isLog/isComm (they cause render issues on restore)
+  const savM=useCallback(m=>{try{localStorage.setItem('goai_v5_msgs',JSON.stringify(m.filter(x=>!x.isLog&&!x.isComm&&x.role&&x.text!=null).slice(-100)));}catch{}},[]);
+  const savMem=useCallback(m=>{try{localStorage.setItem('goai_v5_mem',JSON.stringify(m));}catch{}},[]);
+
+  const addMsg=useCallback((role,text,extra={})=>{
+    const msg={id:uid(),role,text:S(text),...extra};
+    setMsgs(p=>{const n=[...p,msg];savM(n);return n;});
+  },[savM]);
+  // isLog/isComm not saved to localStorage
+  const addLog=useCallback((label,ok,text)=>{setMsgs(p=>[...p,{id:uid(),isLog:true,label:S(label)||'Worker',ok:!!ok,text:S(text)}]);},[]);
+  const addComm=useCallback(comms=>{if(Array.isArray(comms)&&comms.length)setMsgs(p=>[...p,{id:uid(),isComm:true,comms}]);},[]);
+  const addMem=useCallback(m=>{if(m)setMem(p=>{const n=[...p,m].slice(-30);savMem(n);return n;});},[savMem]);
+  const ss=useCallback((t,c='')=>setStat({t,c}),[]);
+
+  async function commsRound(task,workers){
+    const settled=await Promise.allSettled(workers.slice(0,7).map(async pid=>{
+      const r=RULES[pid]||RULES.groq1;
+      const sys=`You are ${r.modelName} (${r.role}, ${r.prov}). In ONE sentence (max 18 words), state exactly what YOU will handle for this task. Reply ONLY with that sentence.`;
+      const text=await api(pid,sys,[{role:'user',content:'Task: '+S(task).slice(0,250)}],80);
+      return{pid,text:S(text).replace(/\n/g,' ').trim().slice(0,160)};
+    }));
+    return settled.filter(r=>r.status==='fulfilled'&&r.value?.pid).map(r=>r.value);
+  }
+  async function mgrPlan(task,workers,proposals){
+    const sys='You are GoAi Manager (Llama-3.3-70B, Groq #2). Output ONLY valid JSON. No markdown, no text outside JSON.';
+    const propText=proposals.length?'AI proposals:\n'+proposals.map(p=>`${p.pid}(${RULES[p.pid]?.modelName||p.pid}): "${p.text}"`).join('\n'):'Workers: '+workers.map(p=>`${p}(${RULES[p]?.role||p})`).join(', ');
+    const q=`Task: "${S(task).slice(0,300)}"\n\n${propText}\n\nAssign each worker a concrete 2-sentence subtask matching their role.\nOutput ONLY: {"plan":"brief strategy","assignments":[{"prov":"groq1","subtask":"task..."},...]}`;
+    try{
+      const raw=await api(MGR,sys,[{role:'user',content:q}],2000);
+      const match=(raw||'').match(/\{[\s\S]*?"assignments"[\s\S]*?\}/);
+      if(!match)throw new Error('no JSON');
+      const parsed=JSON.parse(match[0]);
+      if(!Array.isArray(parsed.assignments))throw new Error('bad assignments');
+      return parsed;
+    }catch(e){
+      return{plan:'Parallel fallback (plan error: '+e.message+')',assignments:workers.slice(0,6).map(p=>({prov:p,subtask:`Task: "${S(task).slice(0,180)}"\nYou are ${RULES[p]?.modelName||p} (${RULES[p]?.role||'AI'}). Strength: ${RULES[p]?.s||'general'}. Provide your COMPLETE contribution. End with [COMPLETE].`}))};
+    }
+  }
+  async function mgrReview(task,responses){
+    const sys='You are GoAi Manager. Output ONLY valid JSON. No extra text.';
+    const listing=responses.map((r,i)=>`[${i}] ${r.label}:\nTask: ${S(r.sub).slice(0,80)}\nOutput: ${S(r.text).slice(0,250)}`).join('\n---\n');
+    const q=`Task: "${S(task).slice(0,150)}"\nOutputs:\n${listing}\nJSON: {"reviews":[{"idx":0,"label":"...","complete":true,"score":8,"issue":""}],"missing":"gaps"}`;
+    try{const raw=await api(MGR,sys,[{role:'user',content:q}],1500);const match=(raw||'').match(/\{[\s\S]*?"reviews"[\s\S]*?\}/);if(!match)throw new Error('no JSON');return JSON.parse(match[0]);}
+    catch{return null;}
+  }
+  async function mgrAssemble(task,responses,rd,hist){
+    setTyping('🎯 Manager assembling final answer...');
+    const sys=`You are GoAi Manager (Llama-3.3-70B). ONE FINAL complete answer. Full code. No truncation. Close ALL \`\`\` blocks. End with [COMPLETE].${getMemCtx(mem)}`;
+    const sorted=[...responses].sort((a,b)=>(b.score||5)-(a.score||5));
+    const parts=sorted.map(r=>`### ${r.label||'AI'} [${r.score||'?'}/10]\n${S(r.text).slice(0,600)}`).join('\n---\n');
+    const q=`Task: "${S(task).slice(0,280)}"${rd?.missing?'\nMissing: '+rd.missing:''}\n\nWorkers:\n${parts}\n\nProduce complete final answer:`;
+    try{
+      const final=await api(MGR,sys,[...hist.slice(-3),{role:'user',content:q.slice(0,18000)}],RULES[MGR].tok);
+      addMsg('mgr','🎯 Manager Final Answer\n\n'+S(final));
+      ss('✓ Done · '+responses.length+' workers','good');
+      doMem('Manager assembled: '+S(task).slice(0,70),'manager').then(addMem);
+    }catch(e){
+      addMsg('warn','❌ Assembly: '+S(e.message));
+      if(sorted.length)addMsg('mgr','🎯 Best worker ('+S(sorted[0].label)+')\n\n'+S(sorted[0].text));
+    }
+    setTyping('');
+  }
+
+  const send=async()=>{
+    const p=inp.trim();if(!p||busy)return;
+    const hist=getHist(msgs,3);
+    addMsg('user',p);setInp('');setBusy(true);ss('Thinking...','warn');
+    doMem(p,'user').then(addMem);
+    try{
+      const isMgr=mode==='managed'||mode==='debate';
+      if(isMgr){
+        const workers=avail.filter(x=>x!==MGR);
+        if(!workers.length){addMsg('warn','No workers available. Add API keys to K{} in server.js');ss('No workers','bad');return;}
+        addMsg('meta',(mode==='debate'?'💬 Debate':'🎯 Managed')+' · Manager: Llama-3.3-70B (Groq #2) · '+workers.length+' workers');
+        // Step 1: discuss
+        setTyping('💬 AIs discussing the task...');
+        let proposals=[];
+        try{proposals=await commsRound(p,workers);}catch(e){console.warn('commsRound:',e.message);}
+        setTyping('');
+        if(proposals.length)addComm(proposals);
+        // Step 2: plan
+        setTyping('📋 Manager assigning tasks...');
+        let plan={plan:'Parallel',assignments:[]};
+        try{plan=await mgrPlan(p,workers,proposals);}catch(e){console.warn('mgrPlan:',e.message);}
+        const rawAsgn=Array.isArray(plan?.assignments)?plan.assignments:[];
+        const validAsgn=rawAsgn.filter(a=>a&&a.prov&&a.prov!==MGR&&avail.includes(a.prov)&&a.subtask);
+        const fa=validAsgn.length?validAsgn:workers.slice(0,5).map(w=>({prov:w,subtask:p+'\n\nYou are '+S(RULES[w]?.modelName||w)+' ('+S(RULES[w]?.role||'AI')+'). Strength: '+S(RULES[w]?.s||'general')+'. Provide COMPLETE response. End with [COMPLETE].'}));
+        addMsg('mgr','📋 Plan: '+S(plan?.plan||'Parallel')+'\n\n'+fa.map(a=>`${RULES[a.prov]?.e||'·'} ${RULES[a.prov]?.modelName||a.prov} (${RULES[a.prov]?.role||'AI'}):\n  ${S(a.subtask).slice(0,90)}`).join('\n'));
+        setTyping('');
+        // Step 3: parallel workers
+        setTyping('⚙️ '+fa.length+' workers executing...');
+        const memSnap=[...mem];
+        const settled=await Promise.allSettled(fa.map(async a=>{
+          const ans=await api(a.prov,buildSys(a.prov,a.subtask,memSnap),[...hist,{role:'user',content:S(a.subtask||p)}]);
+          return{prov:a.prov,label:S(RULES[a.prov]?.modelName||a.prov)+' ('+S(RULES[a.prov]?.role||'AI')+')',sub:S(a.subtask||p),text:S(ans||''),score:7};
+        }));
+        setTyping('');
+        const responses=[];
+        for(const r of settled){
+          if(r.status==='fulfilled'&&r.value){const v=r.value,chk=checkOk(v.text);v.ok=chk.ok;v.issue=chk.issue;responses.push(v);addLog(v.label+(chk.ok?'':' ⚠️ '+chk.issue),chk.ok,(!chk.ok?'⚠️ Issue: '+chk.issue+'\n\n':'')+v.text);}
+          else addMsg('warn','❌ Worker: '+S(r.reason?.message||'failed').slice(0,200));
+        }
+        if(!responses.length){addMsg('warn','🚫 All workers failed. Check API keys in server.js K{}');ss('Failed','bad');return;}
+        // Step 4: review
+        setTyping('🔍 Manager reviewing...');
+        let rd=null;
+        try{rd=await mgrReview(p,responses);}catch(e){console.warn('mgrReview:',e.message);}
+        setTyping('');
+        if(rd?.reviews&&Array.isArray(rd.reviews)){
+          addMsg('mgr','🔍 Review:\n'+rd.reviews.map(rv=>`• ${rv.label||'AI'}: ${rv.score||'?'}/10 ${rv.complete?'✅':'⚠️ '+S(rv.issue)}`).join('\n')+(rd.missing?'\n📌 Gap: '+rd.missing:''));
+          rd.reviews.forEach(rv=>{if(typeof rv.idx==='number'&&rv.idx<responses.length)responses[rv.idx].score=rv.score||7;});
+          let fc=0;
+          for(const rv of rd.reviews){
+            if(fc>=3)break;
+            if(rv.complete||typeof rv.idx!=='number'||rv.idx>=responses.length)continue;
+            const resp=responses[rv.idx];if(!resp||!avail.includes(resp.prov))continue;
+            try{
+              setTyping('🔄 Fixing '+S(RULES[resp.prov]?.modelName||resp.prov)+'...');
+              const fix=await api(resp.prov,buildSys(resp.prov,resp.sub,memSnap)+'\nPREVIOUS ISSUE: "'+S(rv.issue||'incomplete')+'". Fix completely.',[...hist,{role:'user',content:'Issue: "'+S(rv.issue||'incomplete')+'"\nContinue:\n...'+S(resp.text).slice(-500)+'\nComplete. Close all ``` blocks. End [COMPLETE].'}]);
+              responses[rv.idx].text+='\n[MANAGER FIX]\n'+S(fix);
+              addMsg('mgr','🔄 '+S(RULES[resp.prov]?.modelName||resp.prov)+' fixed (was: '+S(rv.issue)+')');
+              fc++;setTyping('');
+            }catch(e2){addMsg('warn','❌ Fix: '+S(e2.message));setTyping('');}
+          }
+        }
+        if(mode==='debate'&&responses.length>1){
+          addMsg('disc','💬 Debate — AIs reviewing each other');
+          for(let i=0;i<Math.min(responses.length,3);i++){
+            const rv=responses[(i+1)%responses.length],sb=responses[i];
+            if(!rv||!sb||!avail.includes(rv.prov))continue;
+            try{
+              setTyping('💬 '+S(RULES[rv.prov]?.modelName||rv.prov)+' → '+S(RULES[sb.prov]?.modelName||sb.prov)+'...');
+              const disc=await api(rv.prov,buildSys(rv.prov,'',memSnap)+' Structured AI debate.',[...hist,{role:'user',content:'Review: "'+S(p).slice(0,150)+'"\n'+S(RULES[sb.prov]?.modelName||sb.prov)+' said:\n'+S(sb.text).slice(0,400)+'\n\n1. What they got right\n2. Specific issues\n3. Your COMPLETE improved answer. End [COMPLETE].'}]);
+              addMsg('disc','💬 '+S(RULES[rv.prov]?.modelName||rv.prov)+' → '+S(RULES[sb.prov]?.modelName||sb.prov)+':\n\n'+S(disc));
+              setTyping('');
+            }catch(e3){addMsg('warn','❌ Debate: '+S(e3.message));setTyping('');}
+          }
+        }
+        await mgrAssemble(p,responses,rd,hist);
+      }else{
+        const order=[pref,...avail.filter(x=>x!==pref)];
+        addMsg('meta',(mode==='smart'?'🧠 Smart':'⚡ Fast')+' · conv history included');
+        for(const pid of order){
+          if(!avail.includes(pid))continue;
+          try{
+            setTyping((RULES[pid]?.e||'⟳')+' '+S(RULES[pid]?.modelName||pid)+'...');
+            const t0=performance.now();
+            const ans=await api(pid,buildSys(pid,'',mem),[...hist,{role:'user',content:p}]);
+            setTyping('');
+            addMsg('ai',S(RULES[pid]?.e||'·')+' '+S(RULES[pid]?.modelName||pid)+' ('+S(RULES[pid]?.role||'AI')+')\n\n'+S(ans));
+            ss('✓ '+S(RULES[pid]?.modelName||pid)+' · '+Math.round(performance.now()-t0)+'ms','good');
+            return;
+          }catch(e){
+            setTyping('');
+            const em=S(e.message||'error');
+            if(/quota|rate|429|limit/i.test(em))addMsg('warn','⚠️ '+S(RULES[pid]?.modelName||pid)+': quota/rate limit');
+            else addMsg('warn','❌ '+pid+' ('+S(RULES[pid]?.modelName||pid)+'): '+em);
+          }
+        }
+        addMsg('warn','🚫 All failed. Check keys in server.js K{}');ss('Failed','bad');
+      }
+    }catch(e){addMsg('warn','🚨 '+S(e?.message||'Unexpected error'));ss('Error','bad');}
+    finally{setBusy(false);setTyping('');}
+  };
+
+  const MODES=[{k:'fast',l:'⚡ Fast'},{k:'smart',l:'🧠 Smart'},{k:'managed',l:'🎯 Managed'},{k:'debate',l:'💬 Debate'}];
+  const dc=stat.c==='good'?'#10b981':stat.c==='bad'?'#ef4444':'#f59e0b';
+  return(
+    <div style={{height:'100%',display:'flex',flexDirection:'column',position:'relative',zIndex:1}}>
+      {/* Header — no fixed children inside, so no stacking context problem */}
+      <div style={{flexShrink:0,padding:'8px 12px',borderBottom:'1px solid rgba(99,102,241,.14)',background:'rgba(6,11,24,.96)',backdropFilter:'blur(20px)',display:'flex',alignItems:'center',gap:8,zIndex:10}}>
+        <div style={{background:'linear-gradient(135deg,#06b6d4,#8b5cf6)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent',fontWeight:900,fontSize:'1.15rem',letterSpacing:'-.5px',flexShrink:0}}>⚡ GoAi</div>
+        <div style={{width:1,height:16,background:'rgba(99,102,241,.22)',flexShrink:0}}/>
+        <ModelPickerBtn pref={pref} provs={provs} onClick={()=>setPickerOpen(true)}/>
+        <div style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+          <button onClick={()=>setMemOpen(true)} style={{background:'rgba(99,102,241,.1)',border:'1px solid rgba(99,102,241,.24)',borderRadius:16,padding:'4px 9px',cursor:'pointer',color:'#a5b4fc',fontSize:10.5,fontFamily:'inherit'}}>🧠 {mem.length}</button>
+          <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,color:dc}}>
+            <span style={{width:5,height:5,borderRadius:'50%',background:dc,display:'inline-block',animation:busy?'blink 1s ease-in-out infinite':''}}/>
+            <span style={{maxWidth:100,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{stat.t}</span>
+          </div>
+        </div>
+      </div>
+      {/* Mode bar */}
+      <div style={{flexShrink:0,padding:'5px 12px',borderBottom:'1px solid rgba(99,102,241,.09)',background:'rgba(5,8,18,.82)',backdropFilter:'blur(12px)',display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}}>
+        {MODES.map(m=>(
+          <button key={m.k} onClick={()=>setMode(m.k)} style={{background:mode===m.k?'rgba(99,102,241,.26)':'rgba(99,102,241,.05)',border:'1px solid '+(mode===m.k?'rgba(99,102,241,.48)':'rgba(99,102,241,.1)'),borderRadius:16,padding:'3px 11px',cursor:'pointer',color:mode===m.k?'#c4b5fd':'#475569',fontSize:11,fontFamily:'inherit',fontWeight:mode===m.k?700:400,transition:'all .18s'}}>
+            {m.l}
+          </button>
+        ))}
+        <span style={{fontSize:8.5,color:'#1e293b',marginLeft:4}}>{(mode==='managed'||mode==='debate')?'discuss→plan→parallel→review→fix→assemble':'conv history · first responder wins'}</span>
+      </div>
+      {/* Chat */}
+      <div ref={chatRef} style={{flex:1,overflowY:'auto',padding:'12px 10px',display:'flex',flexDirection:'column',gap:8}}>
+        {msgs.length===0&&(
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:12,textAlign:'center',padding:20}}>
+            <div style={{fontSize:42}}>⚡</div>
+            <div style={{fontWeight:900,fontSize:'1.3rem',background:'linear-gradient(135deg,#06b6d4,#8b5cf6)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent'}}>GoAi Manager v5</div>
+            <div style={{fontSize:11.5,color:'#1e293b',maxWidth:340,lineHeight:1.8}}>12 AIs · discuss→plan→execute→review · Claude Haiku free (DDG) · Llama-3.3-70B free (OpenRouter) · Tap the pill button ▴ to switch models</div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap',justifyContent:'center'}}>
+              {['Build a React todo app','Write a Python scraper','Explain JWT auth','Design a REST API'].map(s=>(
+                <button key={s} onClick={()=>{setInp(s);inpRef.current?.focus();}} style={{background:'rgba(99,102,241,.07)',border:'1px solid rgba(99,102,241,.2)',borderRadius:16,padding:'5px 11px',cursor:'pointer',color:'#818cf8',fontSize:10.5,fontFamily:'inherit'}}>{s}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        {msgs.map(msg=><Bubble key={msg.id} msg={msg} onPv={(code,lang)=>setPv({code,lang})}/>)}
+        {busy&&typing&&<Typing text={typing}/>}
+      </div>
+      {/* Composer */}
+      <div style={{flexShrink:0,padding:'8px 10px',borderTop:'1px solid rgba(99,102,241,.13)',background:'rgba(6,11,24,.96)',backdropFilter:'blur(20px)'}}>
+        <div style={{display:'flex',gap:6,alignItems:'flex-end'}}>
+          <textarea ref={inpRef} value={inp} onChange={e=>setInp(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}} disabled={busy} placeholder="Ask GoAi... Enter=send · Shift+Enter=newline" style={{flex:1,background:'rgba(6,11,24,.7)',border:'1px solid rgba(99,102,241,.22)',borderRadius:15,padding:'8px 11px',color:'#e2e8f0',fontSize:13,resize:'none',minHeight:40,maxHeight:110,lineHeight:1.5,fontFamily:'inherit',outline:'none'}} rows={1}/>
+          <button onClick={send} disabled={busy||!inp.trim()} style={{background:busy||!inp.trim()?'rgba(99,102,241,.1)':'linear-gradient(135deg,#6366f1,#8b5cf6)',border:'none',borderRadius:14,padding:'8px 15px',cursor:busy||!inp.trim()?'not-allowed':'pointer',color:busy||!inp.trim()?'#334155':'#fff',fontWeight:700,fontSize:14,fontFamily:'inherit',flexShrink:0,boxShadow:!busy&&inp.trim()?'0 4px 14px rgba(99,102,241,.32)':'none',transition:'all .2s'}}>
+            {busy?<span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>⟳</span>:'→'}
+          </button>
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:5}}>
+          <span style={{fontSize:8.5,color:'#1e293b'}}>GoAi v5 · 12 AIs · Llama-3.3-70B free · Claude Haiku free · groq2=Manager</span>
+          <button onClick={()=>{setMsgs([]);savM([]);ss('Ready','good');}} style={{background:'none',border:'none',cursor:'pointer',color:'#1e293b',fontSize:8.5,fontFamily:'inherit'}}>🗑 Clear</button>
+        </div>
+      </div>
+      {/* ALL overlays at root level — outside header, no stacking context issues */}
+      <ModelSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} provs={provs} pref={pref} setPref={setPref}/>
+      <MemDrawer mem={mem} open={memOpen} onClose={()=>setMemOpen(false)} onClear={()=>{setMem([]);savMem([]);}}/>
+      <PvModal pv={pv} onClose={()=>setPv(null)}/>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>
