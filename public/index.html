@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoAi · v6.2</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root{--bg:#020817;--sw:268px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;overflow:hidden}
+body{background:var(--bg);color:#e2e8f0;font-family:'JetBrains Mono',monospace}
+.layout{display:flex;height:100%;position:relative;z-index:1}
+.bg-fx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(120px)}
+.b1{width:700px;height:700px;background:radial-gradient(circle,rgba(139,92,246,.22),transparent 68%);top:-20%;left:-14%;animation:fl1 24s ease-in-out infinite alternate}
+.b2{width:600px;height:600px;background:radial-gradient(circle,rgba(6,182,212,.17),transparent 68%);top:42%;right:-12%;animation:fl2 31s ease-in-out infinite alternate}
+.b3{width:500px;height:500px;background:radial-gradient(circle,rgba(16,185,129,.14),transparent 68%);bottom:-14%;left:20%;animation:fl3 21s ease-in-out infinite alternate}
+.b4{width:360px;height:360px;background:radial-gradient(circle,rgba(99,102,241,.11),transparent 68%);top:20%;left:36%;animation:fl1 17s ease-in-out infinite alternate}
+@keyframes fl1{from{transform:translate(0,0) scale(1)}to{transform:translate(52px,46px) scale(1.11)}}
+@keyframes fl2{from{transform:translate(0,0) scale(1)}to{transform:translate(-46px,62px) scale(.91)}}
+@keyframes fl3{from{transform:translate(0,0) scale(1)}to{transform:translate(36px,-52px) scale(1.09)}}
+@keyframes msgIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+@keyframes cur{0%,100%{opacity:1}50%{opacity:0}}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(99,102,241,.24);border-radius:2px}
+.bub:hover .cpb{opacity:1!important}
+summary{list-style:none}summary::-webkit-details-marker{display:none}
+.ci{border-radius:12px;padding:7px 9px;cursor:pointer;margin-bottom:3px;border:1px solid transparent;transition:background .15s,border-color .15s;display:flex;align-items:center;gap:7px}
+.ci:hover{background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.15)}
+.ci.active{background:rgba(99,102,241,.16);border-color:rgba(99,102,241,.34)}
+.ci-btn{background:none;border:none;cursor:pointer;color:#1e293b;padding:2px 5px;flex-shrink:0;line-height:1;opacity:0;transition:opacity .15s,color .12s;border-radius:7px;font-size:11px}
+.ci:hover .ci-btn,.ci.active .ci-btn{opacity:1}
+.ci-btn:hover{color:#a5b4fc!important;background:rgba(99,102,241,.14)}
+.mbtn{border-radius:18px;padding:4px 13px;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:400;transition:all .18s;flex-shrink:0;white-space:nowrap;border:1px solid rgba(99,102,241,.08);background:rgba(99,102,241,.03);color:#475569}
+.mbtn:hover{background:rgba(99,102,241,.1);color:#818cf8;border-color:rgba(99,102,241,.22)}
+.mbtn.on{font-weight:700;color:#c4b5fd;background:rgba(99,102,241,.22);border-color:rgba(99,102,241,.44);box-shadow:0 0 12px rgba(99,102,241,.18)}
+.mbtn.dc{color:#fdba74;background:rgba(249,115,22,.18);border-color:rgba(249,115,22,.45);box-shadow:0 0 14px rgba(249,115,22,.2)}
+.scur{display:inline-block;width:2px;height:13px;background:#818cf8;margin-left:2px;animation:cur .7s steps(1) infinite;vertical-align:text-bottom;border-radius:1px}
+.rainbow{height:3px;background:linear-gradient(90deg,#06b6d4,#8b5cf6,#10b981,#f97316,#ec4899,#06b6d4);background-size:200%;animation:shimmer 4s linear infinite}
+.grp-lbl{font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;padding:9px 12px 4px}
+textarea:focus,input:focus{box-shadow:0 0 0 2px rgba(99,102,241,.18)}
+button:active:not(:disabled){transform:scale(.97)}
+</style>
+</head>
+<body>
+<div class="bg-fx"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div></div>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useCallback,useRef,useMemo}=React;
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const S=v=>String(v||'');
+const PREVL=new Set(['html','js','javascript','python','py','java','c','cpp','c++','ts','tsx','jsx','go','rust','php','rb','swift','kotlin','sql','bash','sh']);
+
+const DEFAULT_PREF='or_minimax';
+const MGR_ID='groq_llama33_70b_b';
+const DC_MGR_FALLBACK='groq_deepseek_r1';
+
+const RULES={
+  'or_minimax':{role:'MiniMax',modelName:'MiniMax M1',prov:'OpenRouter',s:'long context · recommended',tok:4096,c:'#6366f1',e:'🧩',group:'OpenRouter',isDCWorker:true,isDefault:true},
+  'or_llama33':{role:'Llama Free',modelName:'Llama 3.3 70B',prov:'OpenRouter',s:'free 70B powerhouse',tok:4096,c:'#22c55e',e:'🆓',group:'OpenRouter'},
+  'or_qwen3':{role:'Qwen3',modelName:'Qwen3 8B',prov:'OpenRouter',s:'compact reasoning',tok:4096,c:'#f59e0b',e:'🐉',group:'OpenRouter'},
+  'or_gemma3':{role:'Gemma 3',modelName:'Gemma 3 27B',prov:'OpenRouter',s:'Google open model',tok:4096,c:'#84cc16',e:'💚',group:'OpenRouter'},
+  'or_mistral':{role:'Mistral',modelName:'Mistral 7B',prov:'OpenRouter',s:'efficient & fast',tok:2000,c:'#f97316',e:'🌊',group:'OpenRouter'},
+  'or_phi4':{role:'Phi-4',modelName:'Phi-4 Reasoning',prov:'OpenRouter',s:'Microsoft reasoning',tok:4096,c:'#0ea5e9',e:'🔬',group:'OpenRouter'},
+  'or_deepseek_r1':{role:'DeepSeek R1',modelName:'DeepSeek R1 (OR)',prov:'OpenRouter',s:'reasoning model · free',tok:4096,c:'#60a5fa',e:'🧠',group:'OpenRouter',isDCWorker:true},
+  'groq_llama33_70b':{role:'Assistant',modelName:'Llama 3.3 70B',prov:'Groq',s:'fast chat',tok:2000,c:'#06b6d4',e:'⚡',group:'Groq'},
+  'groq_llama33_70b_b':{role:'Manager',modelName:'Llama 3.3 70B',prov:'Groq',s:'orchestration manager',tok:6000,c:'#10b981',e:'🎯',group:'Groq',isManager:true},
+  'groq_llama4_scout':{role:'Scout',modelName:'Llama 4 Scout 17B',prov:'Groq',s:'fast reasoning',tok:4096,c:'#22c55e',e:'🔭',group:'Groq'},
+  'groq_llama4_maverick':{role:'Maverick',modelName:'Llama 4 Maverick',prov:'Groq',s:'creative thinking',tok:4096,c:'#a3e635',e:'🦅',group:'Groq'},
+  'groq_llama31_8b':{role:'Quick',modelName:'Llama 3.1 8B',prov:'Groq',s:'instant responses',tok:2000,c:'#67e8f9',e:'💨',group:'Groq'},
+  'groq_deepseek_r1':{role:'DC Manager',modelName:'DeepSeek R1 Distill',prov:'Groq',s:'deep reasoning · DC mgr',tok:6000,c:'#60a5fa',e:'🧠',group:'Groq',isDCManager:true},
+  'groq_qwen_qwq':{role:'Thinker',modelName:'Qwen QwQ 32B',prov:'Groq',s:'deep thinking',tok:4096,c:'#f472b6',e:'🤔',group:'Groq',isDCWorker:true},
+  'groq_gemma2_9b':{role:'Compact',modelName:'Gemma 2 9B',prov:'Groq',s:'efficient & concise',tok:2000,c:'#fb923c',e:'💎',group:'Groq'},
+  'groq_mixtral':{role:'Mixture',modelName:'Mixtral 8x7B',prov:'Groq',s:'diverse expertise',tok:4096,c:'#e879f9',e:'🌀',group:'Groq'},
+  'gem_31_flash_lite_k1':{role:'Flash Lite 3.1',modelName:'Gemini 3.1 Flash Lite',prov:'Google',s:'fastest · 1M context',tok:8192,c:'#a78bfa',e:'⚡',group:'Gemini',isDCWorker:true},
+  'gem_31_flash_lite_k2':{role:'Flash Lite K2',modelName:'Gemini 3.1 Flash Lite',prov:'Google',s:'fastest · 1M context',tok:8192,c:'#c4b5fd',e:'⚡',group:'Gemini'},
+  'gem_31_flash_lite_k3':{role:'Flash Lite K3',modelName:'Gemini 3.1 Flash Lite',prov:'Google',s:'fastest · 1M context',tok:8192,c:'#ddd6fe',e:'⚡',group:'Gemini'},
+  'gem_25_flash_k1':{role:'Flash',modelName:'Gemini 2.5 Flash',prov:'Google',s:'multimodal · fast',tok:8192,c:'#8b5cf6',e:'✨',group:'Gemini'},
+  'gem_25_flash_k2':{role:'Flash K2',modelName:'Gemini 2.5 Flash',prov:'Google',s:'multimodal · fast',tok:8192,c:'#a78bfa',e:'✨',group:'Gemini'},
+  'gem_25_flash_k3':{role:'Flash K3',modelName:'Gemini 2.5 Flash',prov:'Google',s:'multimodal · fast',tok:8192,c:'#c4b5fd',e:'✨',group:'Gemini'},
+  'gem_20_flash':{role:'Flash 2.0',modelName:'Gemini 2.0 Flash',prov:'Google',s:'fast & capable',tok:8192,c:'#7c3aed',e:'🔥',group:'Gemini'},
+  'gem_20_flash_lite':{role:'Lite',modelName:'Gemini 2.0 Flash Lite',prov:'Google',s:'lightest & cheapest',tok:8192,c:'#6d28d9',e:'🪶',group:'Gemini'},
+  'gh_gpt41_mini':{role:'GPT-4.1 Mini',modelName:'GPT-4.1 Mini',prov:'GitHub',s:'fast OpenAI model',tok:3000,c:'#14b8a6',e:'🌐',group:'GitHub'},
+  'gh_gpt4o':{role:'GPT-4o',modelName:'GPT-4o',prov:'GitHub',s:'multimodal flagship',tok:4000,c:'#0d9488',e:'🔮',group:'GitHub'},
+  'gh_gpt41':{role:'GPT-4.1',modelName:'GPT-4.1',prov:'GitHub',s:'latest OpenAI text',tok:4000,c:'#0f766e',e:'🤖',group:'GitHub'},
+  'gh_o4_mini':{role:'o4-mini',modelName:'o4-mini',prov:'GitHub',s:'compact reasoning',tok:4000,c:'#115e59',e:'🧩',group:'GitHub'},
+  'gh_deepseek_r1':{role:'DeepSeek R1',modelName:'DeepSeek R1 (GH)',prov:'GitHub',s:'full R1 · fixed',tok:8192,c:'#60a5fa',e:'🧠',group:'GitHub',isDCWorker:true},
+  'gh_deepseek_v3':{role:'DeepSeek V3',modelName:'DeepSeek V3 (GH)',prov:'GitHub',s:'strong coder · fixed',tok:4096,c:'#3b82f6',e:'🔷',group:'GitHub',isDCWorker:true},
+  'gh_llama33':{role:'Llama GH',modelName:'Llama 3.3 70B (GH)',prov:'GitHub',s:'Meta via GitHub',tok:4096,c:'#22c55e',e:'🦙',group:'GitHub'},
+  'gh_phi4':{role:'Phi-4 GH',modelName:'Phi-4 (GH)',prov:'GitHub',s:'Microsoft small model',tok:4096,c:'#0ea5e9',e:'φ',group:'GitHub'},
+  'gh_mistral_large':{role:'Mistral L',modelName:'Mistral Large (GH)',prov:'GitHub',s:'Mistral flagship',tok:4096,c:'#f97316',e:'🌊',group:'GitHub'},
+  'gh_cohere':{role:'Cohere',modelName:'Cohere R+ (GH)',prov:'GitHub',s:'retrieval & RAG',tok:4096,c:'#ec4899',e:'📡',group:'GitHub'},
+  'samba_llama33':{role:'Llama SN',modelName:'Llama 3.3 70B',prov:'SambaNova',s:'high-throughput',tok:4096,c:'#f97316',e:'⚙️',group:'SambaNova'},
+  'samba_llama32':{role:'Llama 90B',modelName:'Llama 3.2 90B',prov:'SambaNova',s:'vision + language',tok:4096,c:'#fb923c',e:'👁️',group:'SambaNova'},
+  'samba_qwen25':{role:'Qwen SN',modelName:'Qwen 2.5 72B (SN)',prov:'SambaNova',s:'open-source powerhouse',tok:4096,c:'#fbbf24',e:'🔶',group:'SambaNova'},
+  'bytez_qwen25':{role:'Qwen',modelName:'Qwen 2.5 72B',prov:'Bytez',s:'open-source specialist',tok:4096,c:'#84cc16',e:'🔬',group:'Bytez'},
+  'bytez_llama31':{role:'Llama Bytez',modelName:'Llama 3.1 70B',prov:'Bytez',s:'reliable baseline',tok:4096,c:'#4ade80',e:'🦙',group:'Bytez'},
+  'bytez_mistral':{role:'Mistral B',modelName:'Mistral 7B',prov:'Bytez',s:'fast & lightweight',tok:4096,c:'#86efac',e:'💫',group:'Bytez'},
+  'duckduckgo':{role:'Haiku Free',modelName:'Claude Haiku',prov:'DuckDuckGo',s:'free Claude — no key needed',tok:2000,c:'#ef4444',e:'🦆',group:'DuckDuckGo',isDCWorker:true}
+};
+
+const getMemCtx=m=>m.length?'\n\n[Recent context]\n'+m.slice(-5).map((x,i)=>`${i+1}. [${x.src}] ${x.q}`).join('\n'):'';
+const buildSys=(pid,sub,mem=[])=>{
+  const r=RULES[pid]||RULES[DEFAULT_PREF];
+  const base=`You are ${r.modelName}, a helpful AI assistant in GoAi. Be clear, honest, and thorough. Help with anything — coding, writing, research, math, creative work, advice, or conversation.${getMemCtx(mem)}`;
+  return sub?(base+'\n\nYour specific task:\n'+sub):base;
+};
+const buildDCSys=(pid,mem=[])=>{
+  const r=RULES[pid]||RULES[DEFAULT_PREF];
+  return `You are ${r.modelName} in GoAi DeepCoder Mode — an expert software engineer.
+RULES: Write COMPLETE, RUNNABLE code. Zero placeholders or TODOs. All imports, error handling included. Clean code, comments only for complex logic. Close ALL \`\`\` blocks. End with [COMPLETE].${getMemCtx(mem)}`;
+};
+const checkOk=t=>{
+  if(!t||t.length<40)return{ok:false,issue:'too short'};
+  if((t.match(/```/g)||[]).length%2!==0)return{ok:false,issue:'unclosed ``` block'};
+  if(/(\.\.\.|…)\s*$/.test(t.trim()))return{ok:false,issue:'truncated'};
+  if(/\/\/\s*(rest|todo|continue|implement|add more)/i.test(t))return{ok:false,issue:'placeholder comment'};
+  return{ok:true,issue:''};
+};
+const getHist=(msgs,n=3)=>msgs.filter(m=>m.role&&(m.role==='user'||m.role==='ai')&&m.text).slice(-(n*2)).map(m=>({role:m.role==='ai'?'assistant':'user',content:S(m.text).slice(0,600)}));
+
+async function api(pid,sys,msgs,tok){
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:pid,systemPrompt:S(sys).slice(0,12000),messages:(msgs||[]).map(m=>({role:m.role,content:S(m.content).slice(0,18000)})),maxTokens:tok||RULES[pid]?.tok||2000})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||'HTTP '+r.status);
+  if(!d.text)throw new Error('Empty from '+pid);
+  return d.text;
+}
+async function streamApi(pid,sys,msgs,tok,onChunk){
+  const r=await fetch('/api/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:pid,systemPrompt:S(sys).slice(0,12000),messages:(msgs||[]).map(m=>({role:m.role,content:S(m.content).slice(0,18000)})),maxTokens:tok||RULES[pid]?.tok||2000})});
+  if(!r.ok){let e='HTTP '+r.status;try{const d=await r.json();e=d.error||e;}catch{}throw new Error(e);}
+  if(!r.body)throw new Error('No response body');
+  const reader=r.body.getReader(),dec=new TextDecoder();let buf='';
+  while(true){
+    const{done,value}=await reader.read();if(done)break;
+    buf+=dec.decode(value,{stream:true});
+    const lines=buf.split('\n');buf=lines.pop()||'';
+    for(const line of lines){
+      if(!line.startsWith('data: '))continue;
+      const pl=line.slice(6).trim();if(pl==='[DONE]')return;
+      try{const d=JSON.parse(pl);if(d.error)throw new Error(d.error);if(d.text)onChunk(d.text);}
+      catch(e){if(e.message&&!e.message.includes('JSON'))throw e;}
+    }
+  }
+}
+async function doMem(prompt,src){
+  try{const r=await fetch('/api/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:S(prompt).slice(0,500)})});const d=await r.json();if(d?.summary)return{q:d.summary,src:src||'user',t:Date.now()};}catch{}
+  return null;
+}
+
+const chatAPI={
+  list:()=>fetch('/api/chats').then(r=>r.json()),
+  get:id=>fetch('/api/chats/'+id).then(r=>r.json()),
+  create:(id,title,mode,pref)=>fetch('/api/chats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,title,mode,pref,messages:[]})}),
+  save:(id,title,mode,pref,msgs)=>fetch('/api/chats/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,mode,pref,messages:msgs})}),
+  rename:(id,title)=>fetch('/api/chats/'+id+'/rename',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({title})}),
+  del:id=>fetch('/api/chats/'+id,{method:'DELETE'})
+};
+
+function parseParts(txt){
+  const str=S(txt);if(!str)return[{t:'txt',c:''}];
+  const rx=/```(\w*)\n([\s\S]*?)```/g;const pts=[];let li=0,m;
+  while((m=rx.exec(str))!==null){if(m.index>li)pts.push({t:'txt',c:str.slice(li,m.index)});pts.push({t:'code',l:m[1]||'',c:m[2]||''});li=rx.lastIndex;}
+  if(li<str.length)pts.push({t:'txt',c:str.slice(li)});
+  return pts.length?pts:[{t:'txt',c:str}];
+}
+
+function MsgContent({text,onPv}){
+  const[cpd,setCpd]=useState({});
+  const cp=(i,c)=>{try{navigator.clipboard.writeText(c||'');}catch{}setCpd(p=>({...p,[i]:1}));setTimeout(()=>setCpd(p=>({...p,[i]:0})),1400);};
+  return(
+    <div>
+      {parseParts(text).map((p,i)=>p.t==='txt'
+        ?<div key={i} style={{whiteSpace:'pre-wrap',lineHeight:1.8,wordBreak:'break-word',fontSize:13}}>{p.c}</div>
+        :<div key={i} style={{margin:'8px 0'}}>
+          <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginBottom:4}}>
+            <span style={{fontSize:9,background:'rgba(99,102,241,.13)',border:'1px solid rgba(99,102,241,.24)',borderRadius:6,padding:'1px 7px',color:'#a5b4fc',letterSpacing:'.04em'}}>{p.l||'code'}</span>
+            <button onClick={()=>cp(i,p.c)} style={{background:'rgba(99,102,241,.08)',border:'1px solid rgba(99,102,241,.2)',borderRadius:11,padding:'2px 9px',fontSize:9,cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',transition:'all .15s'}}>{cpd[i]?'✅':'📋'}</button>
+            {PREVL.has((p.l||'').toLowerCase())&&onPv&&<button onClick={()=>onPv(p.c,p.l)} style={{background:'rgba(6,182,212,.07)',border:'1px solid rgba(6,182,212,.22)',borderRadius:11,padding:'2px 9px',fontSize:9,cursor:'pointer',color:'#67e8f9',fontFamily:'inherit',transition:'all .15s'}}>▶ preview</button>}
+          </div>
+          <pre style={{background:'rgba(1,3,12,.97)',border:'1px solid rgba(99,102,241,.13)',borderRadius:14,padding:'14px 16px',overflowX:'auto',lineHeight:1.65}}>
+            <code style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:'#a5b4fc'}}>{p.c}</code>
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WorkerLog({label,ok,text,onPv}){
+  const[open,setOpen]=useState(false);
+  return(
+    <details style={{border:'1px solid rgba(99,102,241,.09)',borderRadius:12,marginBottom:3,alignSelf:'flex-start',maxWidth:'96%',overflow:'hidden'}} onToggle={e=>setOpen(e.currentTarget.open)}>
+      <summary style={{padding:'6px 13px',cursor:'pointer',display:'flex',alignItems:'center',gap:7,fontSize:11,background:open?'rgba(99,102,241,.06)':'transparent',userSelect:'none',color:'#475569'}}>
+        <span>{ok?'✅':'⚠️'}</span><b style={{color:'#818cf8',fontSize:10.5}}>Worker:</b>
+        <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{label||'AI'}</span>
+        <span style={{fontSize:8,opacity:.24}}>{open?'▲':'▼'}</span>
+      </summary>
+      {open&&<div style={{padding:'10px 13px',borderTop:'1px solid rgba(99,102,241,.07)',maxHeight:300,overflowY:'auto',fontSize:13}}><MsgContent text={text||''} onPv={onPv}/></div>}
+    </details>
+  );
+}
+
+function CommLog({comms}){
+  const[open,setOpen]=useState(true);
+  if(!Array.isArray(comms)||!comms.length)return null;
+  return(
+    <details open={open} style={{border:'1px solid rgba(245,158,11,.13)',borderRadius:12,marginBottom:3,alignSelf:'flex-start',maxWidth:'96%',overflow:'hidden'}} onToggle={e=>setOpen(e.currentTarget.open)}>
+      <summary style={{padding:'6px 13px',cursor:'pointer',display:'flex',alignItems:'center',gap:7,fontSize:11,background:'rgba(245,158,11,.04)',userSelect:'none',color:'#f59e0b'}}>
+        <b>💬 AI Discussion ({comms.length})</b>
+        <span style={{fontSize:8,opacity:.34,marginLeft:'auto'}}>{open?'▲':'▼'}</span>
+      </summary>
+      <div style={{padding:'10px 13px',borderTop:'1px solid rgba(245,158,11,.08)',display:'flex',flexDirection:'column',gap:8}}>
+        {comms.map((c,i)=>{const r=c?.pid?RULES[c.pid]:null;return(
+          <div key={i} style={{display:'flex',gap:9,alignItems:'flex-start'}}>
+            <span style={{fontSize:16,flexShrink:0,lineHeight:1.4}}>{r?.e||'·'}</span>
+            <div>
+              <span style={{fontSize:10,color:'#fbbf24',fontWeight:700}}>{r?.modelName||S(c?.pid)||'AI'} </span>
+              <span style={{fontSize:9,color:'#475569'}}>({r?.role||'worker'})</span>
+              <div style={{fontSize:12.5,color:'#e2e8f0',lineHeight:1.6,marginTop:3,fontStyle:'italic'}}>"{S(c?.text)}"</div>
+            </div>
+          </div>
+        );})}
+      </div>
+    </details>
+  );
+}
+
+function StreamBubble({text,pid}){
+  const r=RULES[pid]||RULES[DEFAULT_PREF];
+  return(
+    <div style={{maxWidth:'94%',alignSelf:'flex-start',animation:'msgIn .22s ease'}}>
+      <div style={{padding:'11px 14px',borderRadius:'6px 22px 22px 22px',background:'rgba(139,92,246,.07)',border:'1px solid rgba(139,92,246,.2)',lineHeight:1.75}}>
+        <div style={{fontSize:9.5,marginBottom:6,display:'flex',alignItems:'center',gap:5}}>
+          <span>{r.e}</span>
+          <span style={{color:r.c||'#64748b',fontWeight:700}}>{r.modelName||pid}</span>
+          <span style={{color:'#334155',fontSize:8.5}}>streaming…</span>
+        </div>
+        <MsgContent text={text}/>
+        <span className="scur"/>
+      </div>
+    </div>
+  );
+}
+
+function ModelPickerBtn({pref,provs,onClick}){
+  const cur=RULES[pref]||{};
+  const av=provs[pref]?.available;
+  const isDefault=pref===DEFAULT_PREF;
+  return(
+    <button onClick={onClick} style={{display:'flex',alignItems:'center',gap:6,background:isDefault?'rgba(99,102,241,.13)':'rgba(99,102,241,.07)',border:'1px solid '+(isDefault?'rgba(99,102,241,.34)':'rgba(99,102,241,.2)'),borderRadius:20,padding:'5px 11px 5px 8px',cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',flexShrink:0,maxWidth:195,transition:'all .18s'}}>
+      <span style={{width:6,height:6,borderRadius:'50%',background:av?'#10b981':'#334155',flexShrink:0,transition:'background .2s'}}/>
+      <span style={{fontSize:15,lineHeight:1,flexShrink:0}}>{cur.e||'·'}</span>
+      <div style={{minWidth:0,textAlign:'left'}}>
+        <div style={{fontSize:11,fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cur.role||pref}</div>
+        <div style={{fontSize:8,opacity:.36,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cur.modelName||''}</div>
+      </div>
+      <span style={{fontSize:9,opacity:.22,flexShrink:0}}>▾</span>
+    </button>
+  );
+}
+
+function ModelSheet({open,onClose,provs,pref,setPref}){
+  const[q,setQ]=useState('');
+  if(!open)return null;
+  const avCount=Object.values(provs).filter(v=>v.available).length;
+  const groups={};
+  for(const[pid,info]of Object.entries(provs)){
+    const r=RULES[pid];if(!r)continue;
+    const g=r.group||'Other';
+    const ql=q.toLowerCase();
+    if(ql&&!r.modelName?.toLowerCase().includes(ql)&&!r.role?.toLowerCase().includes(ql)&&!g.toLowerCase().includes(ql)&&!r.s?.toLowerCase().includes(ql))continue;
+    if(!groups[g])groups[g]=[];
+    groups[g].push({pid,info,r});
+  }
+  const ORDER=['OpenRouter','Groq','Gemini','GitHub','SambaNova','Bytez','DuckDuckGo'];
+  const GC={OpenRouter:'#6366f1',Groq:'#06b6d4',Gemini:'#8b5cf6',GitHub:'#14b8a6',SambaNova:'#f97316',Bytez:'#84cc16',DuckDuckGo:'#ef4444'};
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:9990,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(0,0,0,.82)'}}/>
+      <div style={{position:'relative',background:'rgba(2,5,18,.99)',borderTop:'1px solid rgba(99,102,241,.34)',borderRadius:'22px 22px 0 0',maxHeight:'86vh',display:'flex',flexDirection:'column',animation:'slideUp .22s cubic-bezier(.4,0,.2,1)',boxShadow:'0 -20px 60px rgba(0,0,0,.92)'}}>
+        <div style={{width:36,height:4,background:'rgba(99,102,241,.26)',borderRadius:2,margin:'10px auto 0',flexShrink:0}}/>
+        <div style={{padding:'10px 15px 9px',flexShrink:0,borderBottom:'1px solid rgba(99,102,241,.08)'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <div>
+              <div style={{fontWeight:900,color:'#a5b4fc',fontSize:14,fontFamily:"'Orbitron',monospace"}}>Select Model</div>
+              <div style={{fontSize:9,color:'#334155',marginTop:2}}>{avCount}/{Object.keys(provs).length} available · MiniMax M1 recommended</div>
+            </div>
+            <button onClick={onClose} style={{background:'rgba(99,102,241,.09)',border:'1px solid rgba(99,102,241,.22)',borderRadius:14,padding:'4px 12px',cursor:'pointer',color:'#c4b5fd',fontSize:11,fontFamily:'inherit'}}>✕</button>
+          </div>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search models…" style={{width:'100%',background:'rgba(5,10,28,.85)',border:'1px solid rgba(99,102,241,.16)',borderRadius:12,padding:'7px 12px',color:'#e2e8f0',fontSize:12,fontFamily:'inherit',outline:'none',transition:'border-color .2s'}}/>
+        </div>
+        <div style={{overflowY:'auto',padding:'4px 0 50px'}}>
+          {ORDER.map(g=>{
+            const items=groups[g];if(!items?.length)return null;
+            return(
+              <div key={g}>
+                <div className="grp-lbl" style={{color:GC[g]||'#334155'}}>{g} <span style={{color:'#1e293b',fontSize:8}}>({items.length})</span></div>
+                <div style={{padding:'0 9px',display:'flex',flexDirection:'column',gap:2}}>
+                  {items.map(({pid,info,r})=>{
+                    const sel=pref===pid;
+                    const isDef=pid===DEFAULT_PREF;
+                    return(
+                      <button key={pid} onClick={()=>{setPref(pid);onClose();setQ('');}}
+                        style={{display:'flex',alignItems:'center',gap:10,background:sel?'rgba(99,102,241,.19)':isDef?'rgba(99,102,241,.06)':'rgba(255,255,255,.014)',border:'1px solid '+(sel?'rgba(99,102,241,.46)':isDef?'rgba(99,102,241,.22)':'rgba(99,102,241,.05)'),borderRadius:12,padding:'9px 11px',cursor:'pointer',textAlign:'left',fontFamily:'inherit',width:'100%',transition:'all .14s'}}>
+                        <span style={{width:6,height:6,borderRadius:'50%',background:info.available?'#10b981':'#1e2d3d',boxShadow:info.available?'0 0 0 2px rgba(16,185,129,.16)':'none',flexShrink:0}}/>
+                        <span style={{fontSize:19,lineHeight:1,flexShrink:0,width:24,textAlign:'center'}}>{r.e||'·'}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
+                            <span style={{fontSize:12,fontWeight:sel?700:500,color:sel?'#c4b5fd':'#e2e8f0'}}>{r.role||pid}</span>
+                            {isDef&&<span style={{fontSize:7,background:'rgba(99,102,241,.22)',borderRadius:5,padding:'0 5px',color:'#c4b5fd',fontWeight:700}}>DEFAULT</span>}
+                            {info.isManager&&<span style={{fontSize:7,background:'rgba(16,185,129,.14)',borderRadius:5,padding:'0 4px',color:'#6ee7b7',fontWeight:700}}>MGR</span>}
+                            {info.isDCManager&&<span style={{fontSize:7,background:'rgba(96,165,250,.13)',borderRadius:5,padding:'0 4px',color:'#93c5fd',fontWeight:700}}>DC-MGR</span>}
+                            {info.isDCWorker&&<span style={{fontSize:7,background:'rgba(249,115,22,.12)',borderRadius:5,padding:'0 4px',color:'#fdba74',fontWeight:700}}>DC-WRK</span>}
+                          </div>
+                          <div style={{fontSize:9.5,marginTop:2}}><span style={{color:r.c||'#64748b'}}>{r.modelName||pid}</span><span style={{color:'#2d3748'}}> · {r.prov||''}</span></div>
+                          <div style={{fontSize:8.5,color:'#374151',marginTop:1}}>{r.s||''}</div>
+                        </div>
+                        {sel&&<span style={{color:'#818cf8',fontSize:13,flexShrink:0}}>✓</span>}
+                        {!info.available&&<span style={{fontSize:8,color:'#2d3748',flexShrink:0,background:'rgba(30,41,59,.5)',borderRadius:5,padding:'1px 5px'}}>no key</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PvModal({pv,onClose}){
+  if(!pv)return null;
+  const{code,lang}=pv;const l=(lang||'').toLowerCase();
+  const pm={python:'3',py:'3',java:'java',c:'c',cpp:'cpp','c++':'cpp'};
+  const jsDoc=`<!DOCTYPE html><html><head><style>body{font-family:'JetBrains Mono',monospace;font-size:12px;padding:14px;background:#06080f;color:#d4d4d4}div{margin:3px 0}.e{color:#f48771}.w{color:#fcd34d}</style></head><body><div id="o"></div><script>const _o=document.getElementById('o');const _p=(s,c)=>{const d=document.createElement('div');d.className=c||'';d.textContent=typeof s==='object'?JSON.stringify(s,null,2):String(s);_o.appendChild(d);};console.log=(...a)=>_p(a.join(' '));console.warn=(...a)=>_p(a.join(' '),'w');console.error=(...a)=>_p(a.join(' '),'e');try{${code||''}}catch(e){_p('Error: '+e.message,'e');}<\/script></body></html>`;
+  return(
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.94)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9995,padding:12,animation:'fadeIn .15s ease'}}>
+      <div style={{background:'rgba(2,5,18,.99)',border:'1px solid rgba(99,102,241,.3)',borderRadius:20,width:'100%',maxWidth:960,height:'88vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 0 60px rgba(99,102,241,.12)'}}>
+        <div style={{padding:'10px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid rgba(99,102,241,.1)',flexShrink:0}}>
+          <span style={{fontWeight:700,color:'#a5b4fc',fontSize:13,fontFamily:"'Orbitron',monospace"}}>▶ {(lang||'').toUpperCase()||'CODE'} Preview</span>
+          <button onClick={onClose} style={{background:'rgba(99,102,241,.09)',border:'1px solid rgba(99,102,241,.24)',borderRadius:14,padding:'3px 13px',cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',fontSize:12}}>✕</button>
+        </div>
+        <div style={{flex:1,overflow:'hidden'}}>
+          {l==='html'&&<iframe style={{width:'100%',height:'100%',border:'none'}} sandbox="allow-scripts allow-same-origin allow-forms" srcDoc={code||''}/>}
+          {(l==='js'||l==='javascript')&&<iframe style={{width:'100%',height:'100%',border:'none'}} sandbox="allow-scripts" srcDoc={jsDoc}/>}
+          {pm[l]&&<iframe style={{width:'100%',height:'100%',border:'none'}} src={`https://pythontutor.com/iframe-embed.html#code=${encodeURIComponent(code||'')}&py=${pm[l]}&curInstr=0&verticalStack=false`}/>}
+          {!pm[l]&&l!=='html'&&l!=='js'&&l!=='javascript'&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#334155',flexDirection:'column',gap:12}}><span style={{fontSize:38}}>🔍</span><span style={{fontSize:13}}>No preview for {lang}</span></div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MemDrawer({mem,open,onClose,onClear}){
+  return(
+    <>
+      {open&&<div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.52)',zIndex:9980,animation:'fadeIn .15s ease'}}/>}
+      <div style={{position:'fixed',right:0,top:0,bottom:0,width:288,background:'rgba(2,5,18,.99)',border:'1px solid rgba(99,102,241,.15)',borderRight:'none',borderRadius:'18px 0 0 18px',zIndex:9981,transform:open?'translateX(0)':'translateX(100%)',transition:'transform .28s cubic-bezier(.4,0,.2,1)',display:'flex',flexDirection:'column',boxShadow:'-8px 0 40px rgba(0,0,0,.7)'}}>
+        <div style={{padding:'13px 14px',borderBottom:'1px solid rgba(99,102,241,.09)',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
+          <span style={{fontWeight:900,color:'#a5b4fc',fontSize:13,fontFamily:"'Orbitron',monospace"}}>🧠 Memory ({mem.length})</span>
+          <div style={{display:'flex',gap:5}}>
+            <button onClick={onClear} style={{background:'rgba(239,68,68,.09)',border:'1px solid rgba(239,68,68,.22)',borderRadius:12,padding:'2px 10px',cursor:'pointer',color:'#fca5a5',fontSize:10,fontFamily:'inherit'}}>🗑</button>
+            <button onClick={onClose} style={{background:'rgba(99,102,241,.09)',border:'1px solid rgba(99,102,241,.22)',borderRadius:12,padding:'2px 10px',cursor:'pointer',color:'#c4b5fd',fontSize:10,fontFamily:'inherit'}}>✕</button>
+          </div>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:9,display:'flex',flexDirection:'column',gap:5}}>
+          {!mem.length&&<p style={{color:'#1e293b',fontStyle:'italic',textAlign:'center',marginTop:40,fontSize:12}}>No memories yet.</p>}
+          {mem.slice().reverse().map((m,i)=>(
+            <div key={i} style={{background:'rgba(99,102,241,.04)',border:'1px solid rgba(99,102,241,.08)',borderRadius:10,padding:'7px 10px'}}>
+              <div style={{display:'flex',gap:4,marginBottom:3,alignItems:'center'}}>
+                <span style={{fontSize:8,background:'rgba(99,102,241,.15)',borderRadius:5,padding:'1px 6px',color:'#a5b4fc'}}>{m?.src||'?'}</span>
+                <span style={{fontSize:8,color:'#1e293b',marginLeft:'auto'}}>{m?.t?new Date(m.t).toLocaleTimeString():''}</span>
+              </div>
+              <p style={{fontSize:11.5,color:'#cbd5e1',lineHeight:1.55}}>{m?.q||''}</p>
+            </div>
+          ))}
+        </div>
+        <div style={{padding:'6px 12px',borderTop:'1px solid rgba(99,102,241,.06)',fontSize:8.5,color:'#0f172a',textAlign:'center'}}>Anti-Gajini Quick Memory Reference</div>
+      </div>
+    </>
+  );
+}
+
+function AboutModal({open,onClose}){
+  if(!open)return null;
+  const modes=[['🧩','Default','MiniMax M1 — powerful, fast, free via OpenRouter'],['⚡','Fast','Stream one AI instantly, falls back if needed'],['🧠','Smart','Smart fallback through all available AIs'],['🎯','Managed','Plan → parallel workers → review → assemble'],['💬','Debate','AIs critique and improve each other\'s answers'],['💻','DeepCoder','DeepSeek R1 leads specialist coding team']];
+  return(
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.92)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9998,padding:20,animation:'fadeIn .2s ease',overflowY:'auto'}}>
+      <div style={{background:'rgba(2,5,18,.99)',border:'1px solid rgba(99,102,241,.24)',borderRadius:24,width:'100%',maxWidth:420,overflow:'hidden',boxShadow:'0 0 80px rgba(99,102,241,.16)'}}>
+        <div className="rainbow"/>
+        <div style={{padding:'26px 24px'}}>
+          <div style={{textAlign:'center',marginBottom:22}}>
+            <div style={{fontFamily:"'Orbitron',monospace",fontSize:'2.4rem',fontWeight:900,background:'linear-gradient(135deg,#06b6d4,#8b5cf6,#10b981)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent',letterSpacing:'-1px',marginBottom:4}}>⚡ GoAi</div>
+            <div style={{fontSize:9.5,color:'#334155',letterSpacing:'.18em',textTransform:'uppercase'}}>Multi-AI Collaboration System</div>
+            <div style={{fontSize:11,color:'#475569',marginTop:4}}>v6.2 · {Object.keys(RULES).length} Models · Bytez API · Streaming · JSON Store</div>
+          </div>
+          <div style={{background:'linear-gradient(135deg,rgba(99,102,241,.09),rgba(139,92,246,.06))',border:'1px solid rgba(99,102,241,.22)',borderRadius:18,padding:'16px 20px',marginBottom:18,textAlign:'center',position:'relative',overflow:'hidden'}}>
+            <div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 50% 0%,rgba(99,102,241,.08),transparent 70%)',pointerEvents:'none'}}/>
+            <div style={{fontSize:9.5,color:'#4a5568',marginBottom:6,letterSpacing:'.14em',textTransform:'uppercase'}}>Created by</div>
+            <div style={{fontFamily:"'Orbitron',monospace",fontSize:'1.4rem',fontWeight:900,background:'linear-gradient(135deg,#06b6d4,#8b5cf6)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent'}}>Arush Kumar</div>
+            <div style={{marginTop:5,fontSize:10,color:'#4a5568'}}>Builder · Developer · Innovator</div>
+          </div>
+          <div style={{marginBottom:18}}>
+            <div style={{fontSize:9,color:'#334155',marginBottom:7,textTransform:'uppercase',letterSpacing:'.12em'}}>Modes</div>
+            {modes.map(([e,n,d])=>(
+              <div key={n} style={{display:'flex',alignItems:'flex-start',gap:9,padding:'5px 2px',borderBottom:'1px solid rgba(99,102,241,.05)'}}>
+                <span style={{fontSize:13,width:20,textAlign:'center',flexShrink:0,lineHeight:1.7}}>{e}</span>
+                <span style={{fontSize:11,fontWeight:700,color:'#a5b4fc',width:80,flexShrink:0,lineHeight:1.7}}>{n}</span>
+                <span style={{fontSize:9.5,color:'#475569',lineHeight:1.7}}>{d}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={onClose} style={{width:'100%',background:'rgba(99,102,241,.09)',border:'1px solid rgba(99,102,241,.26)',borderRadius:14,padding:'11px',cursor:'pointer',color:'#c4b5fd',fontSize:12,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,transition:'all .18s'}}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChatItem({chat,active,onSelect,onDelete,onRename}){
+  const[editing,setEditing]=useState(false);
+  const[val,setVal]=useState(chat.title||'New Chat');
+  const inputRef=useRef(null);
+  useEffect(()=>{if(editing){setVal(chat.title||'New Chat');setTimeout(()=>{inputRef.current?.focus();inputRef.current?.select();},10);}},[editing,chat.title]);
+  const commit=()=>{const t=val.trim();if(t&&t!==chat.title)onRename(chat.id,t);setEditing(false);};
+  const fmt=t=>{const d=new Date(t),n=new Date();return d.toDateString()===n.toDateString()?d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString([],{month:'short',day:'numeric'});};
+  return(
+    <div className={`ci${active?' active':''}`} onClick={()=>!editing&&onSelect(chat.id)}>
+      {editing?(
+        <input ref={inputRef} value={val} onChange={e=>setVal(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();commit();}if(e.key==='Escape'){setEditing(false);setVal(chat.title||'New Chat');}}}
+          onClick={e=>e.stopPropagation()}
+          style={{flex:1,background:'rgba(99,102,241,.1)',border:'1px solid rgba(99,102,241,.3)',borderRadius:8,padding:'3px 7px',color:'#c4b5fd',fontFamily:'inherit',fontSize:11,outline:'none',minWidth:0}}
+        />
+      ):(
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:11.5,color:active?'#c4b5fd':'#94a3b8',fontWeight:active?700:400,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{chat.title||'New Chat'}</div>
+          <div style={{fontSize:8.5,color:'#1e293b',marginTop:1,display:'flex',gap:4}}>
+            <span>{fmt(chat.updated_at)}</span><span>·</span><span>{chat.msg_count||0} msgs</span>
+          </div>
+        </div>
+      )}
+      {!editing&&<>
+        <button className="ci-btn" onClick={e=>{e.stopPropagation();setEditing(true);}} title="Rename">✏️</button>
+        <button className="ci-btn" onClick={e=>{e.stopPropagation();onDelete(chat.id);}} title="Delete" style={{fontSize:15}}>×</button>
+      </>}
+    </div>
+  );
+}
+
+function Sidebar({chats,activeId,onNew,onSelect,onDelete,onRename,onAbout,open,provAvail}){
+  return(
+    <div style={{width:open?'var(--sw)':'0',flexShrink:0,overflow:'hidden',transition:'width .28s cubic-bezier(.4,0,.2,1)',background:'rgba(1,3,13,.97)',borderRight:'1px solid rgba(99,102,241,.07)',position:'relative',zIndex:50}}>
+      <div style={{width:'var(--sw)',height:'100%',display:'flex',flexDirection:'column',minWidth:0}}>
+        <div style={{padding:'15px 15px 11px',borderBottom:'1px solid rgba(99,102,241,.07)',flexShrink:0}}>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:'1.1rem',fontWeight:900,background:'linear-gradient(135deg,#06b6d4,#8b5cf6)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent',marginBottom:2}}>⚡ GoAi</div>
+          <div style={{fontSize:8,color:'#0f172a',letterSpacing:'.14em'}}>{provAvail} PROVIDERS · STREAMING</div>
+        </div>
+        <div style={{padding:'9px 10px 5px',flexShrink:0}}>
+          <button onClick={onNew} style={{width:'100%',background:'linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.08))',border:'1px solid rgba(99,102,241,.22)',borderRadius:12,padding:'9px 12px',cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',fontSize:11.5,fontWeight:700,display:'flex',alignItems:'center',gap:8,justifyContent:'center',transition:'all .18s'}}>
+            <span style={{fontSize:16,lineHeight:1}}>＋</span> New Chat
+          </button>
+        </div>
+        {chats.length>0&&<div style={{padding:'8px 14px 3px',fontSize:8,color:'#0f172a',letterSpacing:'.12em',textTransform:'uppercase',flexShrink:0}}>Chats ({chats.length})</div>}
+        <div style={{flex:1,overflowY:'auto',padding:'2px 8px 6px'}}>
+          {!chats.length&&<div style={{color:'#1e293b',fontSize:11,textAlign:'center',marginTop:34,fontStyle:'italic'}}>No chats yet</div>}
+          {[...chats].sort((a,b)=>b.updated_at-a.updated_at).map(c=>(
+            <ChatItem key={c.id} chat={c} active={c.id===activeId} onSelect={onSelect} onDelete={onDelete} onRename={onRename}/>
+          ))}
+        </div>
+        <div style={{borderTop:'1px solid rgba(99,102,241,.07)',padding:'8px 10px',flexShrink:0,display:'flex',flexDirection:'column',gap:4}}>
+          <button onClick={onAbout} style={{background:'none',border:'1px solid rgba(99,102,241,.09)',borderRadius:11,padding:'7px 12px',cursor:'pointer',color:'#475569',fontFamily:'inherit',fontSize:11,textAlign:'left',display:'flex',alignItems:'center',gap:8,transition:'all .15s'}}>
+            <span>ℹ️</span> About GoAi
+          </button>
+          <div style={{fontSize:8,color:'#0f172a',textAlign:'center'}}>Made by Arush Kumar · v6.2</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Typing({text}){
+  return(
+    <div style={{alignSelf:'flex-start',display:'flex',alignItems:'center',gap:9,padding:'8px 14px',background:'rgba(99,102,241,.04)',border:'1px solid rgba(99,102,241,.1)',borderRadius:'6px 18px 18px 18px',fontSize:12,color:'#64748b',animation:'msgIn .2s ease',maxWidth:'92%'}}>
+      <div style={{display:'flex',gap:4,flexShrink:0}}>{[0,1,2].map(i=><span key={i} style={{width:5,height:5,borderRadius:'50%',background:'#818cf8',display:'inline-block',animation:'blink 1.4s ease-in-out infinite',animationDelay:i*.22+'s'}}/>)}</div>
+      <span style={{fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:265}}>{text||'…'}</span>
+    </div>
+  );
+}
+
+const BS={
+  user:{bg:'rgba(6,182,212,.07)',bd:'rgba(6,182,212,.19)', se:'flex-end',  br:'22px 6px 22px 22px'},
+  ai:  {bg:'rgba(139,92,246,.07)',bd:'rgba(139,92,246,.19)',se:'flex-start',br:'6px 22px 22px 22px'},
+  mgr: {bg:'rgba(16,185,129,.07)',bd:'rgba(16,185,129,.2)', se:'flex-start',br:'6px 22px 22px 22px'},
+  disc:{bg:'rgba(245,158,11,.05)',bd:'rgba(245,158,11,.18)',se:'flex-start',br:'6px 22px 22px 22px'},
+  warn:{bg:'rgba(239,68,68,.05)', bd:'rgba(239,68,68,.2)',  se:'flex-start',br:'6px 22px 22px 22px',tc:'#fca5a5'},
+  meta:{bg:'transparent',         bd:'transparent',         se:'flex-start',tc:'#334155',fi:'italic'}
+};
+function Bubble({msg,onPv}){
+  const[cpd,setCpd]=useState(false);
+  if(msg.isLog)return<WorkerLog label={S(msg.label)} ok={!!msg.ok} text={S(msg.text)} onPv={onPv}/>;
+  if(msg.isComm)return<CommLog comms={msg.comms||[]}/>;
+  const b=BS[msg.role]||BS.meta;
+  return(
+    <div className="bub" style={{maxWidth:'94%',alignSelf:b.se||'flex-start',animation:'msgIn .22s ease',position:'relative'}}>
+      <div style={{padding:'11px 14px',borderRadius:b.br||'6px 22px 22px 22px',background:b.bg||'transparent',border:'1px solid '+(b.bd||'transparent'),color:b.tc||'#e2e8f0',fontStyle:b.fi||'normal',lineHeight:1.78}}>
+        <MsgContent text={S(msg.text)} onPv={onPv}/>
+      </div>
+      {msg.role!=='meta'&&msg.role!=='warn'&&msg.text&&(
+        <button className="cpb" onClick={()=>{try{navigator.clipboard.writeText(S(msg.text));}catch{}setCpd(true);setTimeout(()=>setCpd(false),1400);}} style={{position:'absolute',top:6,right:6,opacity:0,background:'rgba(4,8,22,.96)',border:'1px solid rgba(99,102,241,.22)',borderRadius:10,padding:'2px 8px',fontSize:9,cursor:'pointer',color:'#a5b4fc',transition:'opacity .18s'}}>{cpd?'✅':'📋'}</button>
+      )}
+    </div>
+  );
+}
+
+function App(){
+  const[chats,setChats]=useState([]);
+  const[activeId,setActiveId]=useState(null);
+  const[activeMsgs,setActiveMsgs]=useState([]);
+  const[activeMode,setActiveMode]=useState('fast');
+  const[activePref,setActivePref]=useState(DEFAULT_PREF);
+  const[sideOpen,setSideOpen]=useState(true);
+  const[aboutOpen,setAboutOpen]=useState(false);
+  const[mem,setMem]=useState([]);
+  const[memOpen,setMemOpen]=useState(false);
+  const[pickerOpen,setPickerOpen]=useState(false);
+  const[pv,setPv]=useState(null);
+  const[busy,setBusy]=useState(false);
+  const[typing,setTyping]=useState('');
+  const[streamBuf,setStreamBuf]=useState('');
+  const[streamPid,setStreamPid]=useState('');
+  const[stat,setStat]=useState({t:'Connecting…',c:''});
+  const[provs,setProvs]=useState({});
+  const[inp,setInp]=useState('');
+  const chatRef=useRef(null);
+  const inpRef=useRef(null);
+  const saveTimer=useRef(null);
+
+  const avail=useMemo(()=>Object.entries(provs).filter(([,v])=>v.available).map(([k])=>k),[provs]);
+  const provAvail=useMemo(()=>Object.values(provs).filter(v=>v.available).length,[provs]);
+  const dcManagers=useMemo(()=>Object.entries(provs).filter(([,v])=>v.available&&v.isDCManager).map(([k])=>k),[provs]);
+  const dcWorkers=useMemo(()=>Object.entries(provs).filter(([,v])=>v.available&&v.isDCWorker).map(([k])=>k),[provs]);
+
+  useEffect(()=>{
+    fetch('/api/providers').then(r=>r.json()).then(d=>{
+      setProvs(d);
+      setStat({t:'Ready · '+Object.values(d).filter(v=>v.available).length+' AIs',c:'good'});
+    }).catch(()=>setStat({t:'⚠️ Server offline',c:'bad'}));
+    chatAPI.list().then(cs=>{
+      if(cs?.length){
+        setChats(cs);
+        const last=cs[0];
+        setActiveId(last.id);
+        return chatAPI.get(last.id).then(c=>{
+          setActiveMsgs(Array.isArray(c.messages)?c.messages:[]);
+          setActiveMode(c.mode||'fast');
+          setActivePref(c.pref||DEFAULT_PREF);
+        });
+      }else return createChatFn();
+    }).catch(()=>createChatFn());
+    try{const s=localStorage.getItem('goai_mem');if(s){const p=JSON.parse(s);if(Array.isArray(p))setMem(p);}}catch{}
+  },[]);
+  useEffect(()=>{if(chatRef.current)chatRef.current.scrollTop=chatRef.current.scrollHeight;},[activeMsgs,typing,streamBuf]);
+
+  const scheduleSave=useCallback((id,title,mode,pref,msgs)=>{
+    if(saveTimer.current)clearTimeout(saveTimer.current);
+    saveTimer.current=setTimeout(()=>{
+      const clean=msgs.filter(m=>!m.isLog&&!m.isComm&&m.role&&m.text!=null);
+      chatAPI.save(id,title,mode,pref,clean).catch(console.error);
+      setChats(prev=>prev.map(c=>c.id===id?{...c,msg_count:clean.length,updated_at:Date.now(),title}:c));
+    },800);
+  },[]);
+
+  const createChatFn=useCallback(async()=>{
+    const id=uid(),mode='fast',pref=DEFAULT_PREF;
+    await chatAPI.create(id,'New Chat',mode,pref).catch(console.error);
+    const nc={id,title:'New Chat',mode,pref,msg_count:0,created_at:Date.now(),updated_at:Date.now()};
+    setChats(prev=>[nc,...prev]);
+    setActiveId(id);setActiveMsgs([]);setActiveMode(mode);setActivePref(pref);setInp('');
+  },[]);
+
+  const selectChat=useCallback(async id=>{
+    if(id===activeId)return;
+    const c=chats.find(x=>x.id===id);if(!c)return;
+    setActiveId(id);
+    try{const data=await chatAPI.get(id);setActiveMsgs(Array.isArray(data.messages)?data.messages:[]);setActiveMode(data.mode||'fast');setActivePref(data.pref||DEFAULT_PREF);}
+    catch{setActiveMsgs([]);}
+    setSideOpen(false);
+  },[activeId,chats]);
+
+  const deleteChat=useCallback(async id=>{
+    await chatAPI.del(id).catch(console.error);
+    setChats(prev=>{
+      const n=prev.filter(c=>c.id!==id);
+      if(id===activeId){
+        if(n.length){const f=n[0];setActiveId(f.id);chatAPI.get(f.id).then(c=>{setActiveMsgs(Array.isArray(c.messages)?c.messages:[]);setActiveMode(c.mode||'fast');setActivePref(c.pref||DEFAULT_PREF);}).catch(()=>setActiveMsgs([]));}
+        else{setActiveId(null);setActiveMsgs([]);createChatFn();}
+      }
+      return n;
+    });
+  },[activeId,createChatFn]);
+
+  const renameChat=useCallback(async(id,title)=>{
+    setChats(prev=>prev.map(c=>c.id===id?{...c,title}:c));
+    if(id===activeId)scheduleSave(id,title,activeMode,activePref,activeMsgs);
+    await chatAPI.rename(id,title).catch(console.error);
+  },[activeId,activeMode,activePref,activeMsgs,scheduleSave]);
+
+  const setMode=useCallback(m=>{
+    setActiveMode(m);
+    if(activeId){setChats(prev=>prev.map(c=>c.id===activeId?{...c,mode:m}:c));chatAPI.save(activeId,chats.find(c=>c.id===activeId)?.title||'New Chat',m,activePref,activeMsgs.filter(x=>!x.isLog&&!x.isComm)).catch(console.error);}
+  },[activeId,activePref,activeMsgs,chats]);
+
+    const setPref=useCallback(p=>{
+    setActivePref(p);
+    if(activeId){setChats(prev=>prev.map(c=>c.id===activeId?{...c,pref:p}:c));chatAPI.save(activeId,chats.find(c=>c.id===activeId)?.title||'New Chat',activeMode,p,activeMsgs.filter(x=>!x.isLog&&!x.isComm)).catch(console.error);}
+  },[activeId,activeMode,activeMsgs,chats]);
+
+  const addMsg=useCallback((role,text,extra={})=>{
+    const msg={id:uid(),role,text:S(text),...extra};
+    setActiveMsgs(prev=>{
+      const n=[...prev,msg];
+      const chat=chats.find(c=>c.id===activeId);
+      const title=(chat?.title==='New Chat'&&role==='user')?text.slice(0,44)+(text.length>44?'…':''):chat?.title||'New Chat';
+      scheduleSave(activeId,title,activeMode,activePref,n);
+      if(title!==chat?.title)setChats(p=>p.map(c=>c.id===activeId?{...c,title}:c));
+      return n;
+    });
+  },[activeId,activeMode,activePref,chats,scheduleSave]);
+
+  const addLog=useCallback((label,ok,text)=>{setActiveMsgs(prev=>[...prev,{id:uid(),isLog:true,label:S(label),ok:!!ok,text:S(text)}]);},[]);
+  const addComm=useCallback(comms=>{if(Array.isArray(comms)&&comms.length)setActiveMsgs(prev=>[...prev,{id:uid(),isComm:true,comms}]);},[]);
+  const addMem=useCallback(m=>{if(m)setMem(prev=>{const n=[...prev,m].slice(-30);try{localStorage.setItem('goai_mem',JSON.stringify(n));}catch{}return n;});},[]);
+  const ss=useCallback((t,c='')=>setStat({t,c}),[]);
+  const clearChat=useCallback(()=>{setActiveMsgs([]);if(activeId)chatAPI.save(activeId,chats.find(c=>c.id===activeId)?.title||'New Chat',activeMode,activePref,[]).catch(console.error);ss('Cleared','good');},[activeId,activeMode,activePref,chats]);
+
+  async function commsRound(task,workers){
+    const settled=await Promise.allSettled(workers.slice(0,6).map(async pid=>{
+      const r=RULES[pid]||RULES[DEFAULT_PREF];
+      const text=await api(pid,`You are ${r.modelName}. In ONE sentence (max 20 words), state what YOU will specifically handle.`,[{role:'user',content:'Task: '+S(task).slice(0,240)}],90);
+      return{pid,text:S(text).replace(/\n/g,' ').trim().slice(0,170)};
+    }));
+    return settled.filter(r=>r.status==='fulfilled'&&r.value?.pid).map(r=>r.value);
+  }
+
+  async function mgrPlan(task,workers,proposals,mgrId){
+    const mgr=mgrId||MGR_ID;
+    const propText=proposals.length?'Proposals:\n'+proposals.map(p=>`${p.pid}(${RULES[p.pid]?.role||p.pid}): "${p.text}"`).join('\n'):'Workers: '+workers.map(p=>`${p}(${RULES[p]?.role||p})`).join(', ');
+    const q=`Task: "${S(task).slice(0,280)}"\n\n${propText}\n\nOutput ONLY: {"plan":"strategy","assignments":[{"prov":"or_minimax","subtask":"..."},...]}`;
+    try{
+      const raw=await api(mgr,'You are GoAi Manager. Output ONLY valid JSON.',[{role:'user',content:q}],2000);
+      const m=(raw||'').match(/\{[\s\S]*?"assignments"[\s\S]*?\}/);if(!m)throw new Error();
+      const p=JSON.parse(m[0]);if(!Array.isArray(p.assignments))throw new Error();return p;
+    }catch{return{plan:'Parallel fallback',assignments:workers.slice(0,6).map(w=>({prov:w,subtask:task+'\n\nYou are '+S(RULES[w]?.modelName||w)+'. Provide a COMPLETE helpful response.'}))};}
+  }
+
+  async function mgrReview(task,responses,mgrId){
+    const mgr=mgrId||MGR_ID;
+    const listing=responses.map((r,i)=>`[${i}] ${r.label}: ${S(r.text).slice(0,200)}`).join('\n---\n');
+    const q=`Task: "${S(task).slice(0,120)}"\nOutputs:\n${listing}\nJSON: {"reviews":[{"idx":0,"label":"...","complete":true,"score":8,"issue":""}],"missing":"gaps"}`;
+    try{const raw=await api(mgr,'You are GoAi Manager. Output ONLY valid JSON.',[{role:'user',content:q}],1400);const m=(raw||'').match(/\{[\s\S]*?"reviews"[\s\S]*?\}/);if(!m)throw new Error();return JSON.parse(m[0]);}
+    catch{return null;}
+  }
+
+  async function mgrAssemble(task,responses,rd,hist,memSnap,mgrId,isCoding=false){
+    setTyping('🎯 Assembling final answer…');
+    const mgr=mgrId||MGR_ID;
+    const sorted=[...responses].sort((a,b)=>(b.score||5)-(a.score||5));
+    const parts=sorted.map(r=>`### ${r.label} [${r.score||'?'}/10]\n${S(r.text).slice(0,650)}`).join('\n---\n');
+    const sys=isCoding
+      ?`You are GoAi Manager in DeepCoder Mode. Assemble ONE FINAL complete, runnable codebase. Close ALL \`\`\` blocks. End [COMPLETE].${getMemCtx(memSnap)}`
+      :`You are GoAi Manager. Produce ONE FINAL clear, complete, helpful answer.${getMemCtx(memSnap)}`;
+    const q=`Task: "${S(task).slice(0,260)}"${rd?.missing?'\nMissing: '+rd.missing:''}\n\nWorkers:\n${parts}\n\nFinal answer:`;
+    try{
+      const final=await api(mgr,sys,[...hist.slice(-2),{role:'user',content:q.slice(0,18000)}],RULES[mgr]?.tok||6000);
+      addMsg('mgr',(isCoding?'💻':'🎯')+' Manager Final Answer\n\n'+S(final));
+      ss('✓ Done · '+responses.length+' workers','good');
+      doMem((isCoding?'DeepCoder':'Manager')+': '+S(task).slice(0,60),isCoding?'deepcoder':'manager').then(addMem);
+    }catch(e){
+      addMsg('warn','❌ Assembly: '+S(e.message));
+      if(sorted.length)addMsg('mgr','🎯 Best result ('+S(sorted[0].label)+')\n\n'+S(sorted[0].text));
+    }
+    setTyping('');
+  }
+
+  async function runDeepCoder(p,hist,memSnap){
+    const dcMgr=dcManagers[0]||avail.find(x=>x===DC_MGR_FALLBACK)||MGR_ID;
+    const workers=dcWorkers.filter(x=>x!==dcMgr&&avail.includes(x));
+    const useWorkers=workers.length?workers:avail.filter(x=>x!==dcMgr).slice(0,5);
+    if(!useWorkers.length){addMsg('warn','No DeepCoder workers available.');ss('No workers','bad');return;}
+    addMsg('meta',`💻 DeepCoder · Manager: ${RULES[dcMgr]?.modelName||dcMgr} · ${useWorkers.length} specialists`);
+    setTyping('💻 Specialists proposing architecture…');
+    let proposals=[];
+    try{
+      const settled=await Promise.allSettled(useWorkers.slice(0,5).map(async pid=>{
+        const r=RULES[pid];
+        const text=await api(pid,`You are ${r.modelName}. In ONE sentence (max 22 words), state the specific module you will implement.`,[{role:'user',content:'Coding task: '+S(p).slice(0,220)}],90);
+        return{pid,text:S(text).replace(/\n/g,' ').trim().slice(0,180)};
+      }));
+      proposals=settled.filter(r=>r.status==='fulfilled'&&r.value?.pid).map(r=>r.value);
+    }catch{}
+    setTyping('');if(proposals.length)addComm(proposals);
+    setTyping('📋 DeepSeek architecting modules…');
+    let assignments=useWorkers.slice(0,6).map(w=>({prov:w,subtask:`Write COMPLETE code for: "${S(p).slice(0,150)}"\nYou are ${RULES[w]?.modelName||w}. ALL code runnable. End [COMPLETE].`}));
+    try{
+      const propText=proposals.length?'Proposals:\n'+proposals.map(x=>`${x.pid}(${RULES[x.pid]?.role}): "${x.text}"`).join('\n'):'Workers: '+useWorkers.map(x=>`${x}(${RULES[x]?.role})`).join(', ');
+      const planRaw=await api(dcMgr,'You are GoAi DeepCoder Manager. Output ONLY valid JSON.',[{role:'user',content:`Coding task: "${S(p).slice(0,250)}"\n\n${propText}\n\nAssign each worker a SPECIFIC module.\nOutput ONLY: {"plan":"architecture","assignments":[{"prov":"or_minimax","subtask":"Implement [specific module]..."}]}`}],2200);
+      const m=(planRaw||'').match(/\{[\s\S]*?"assignments"[\s\S]*?\}/);
+      if(m){const parsed=JSON.parse(m[0]);if(Array.isArray(parsed.assignments)&&parsed.assignments.length){const va=parsed.assignments.filter(a=>a.prov&&avail.includes(a.prov)&&a.subtask&&a.prov!==dcMgr);if(va.length){assignments=va;addMsg('mgr','📋 DeepCoder Architecture: '+S(parsed.plan)+'\n\n'+assignments.map(a=>`${RULES[a.prov]?.e||'·'} ${RULES[a.prov]?.modelName||a.prov}:\n  ${S(a.subtask).slice(0,80)}`).join('\n'));}}}
+    }catch(e){console.warn('DC plan:',e.message);}
+    setTyping('');
+    setTyping(`⚙️ ${assignments.length} coding AIs writing in parallel…`);
+    const settled=await Promise.allSettled(assignments.map(async a=>{const ans=await api(a.prov,buildDCSys(a.prov,memSnap),[...hist,{role:'user',content:S(a.subtask||p)}]);return{prov:a.prov,label:S(RULES[a.prov]?.modelName||a.prov)+' ('+S(RULES[a.prov]?.role||'AI')+')',sub:S(a.subtask||p),text:S(ans||''),score:7};}));
+    setTyping('');
+    const responses=[];
+    for(const r of settled){if(r.status==='fulfilled'&&r.value){const v=r.value,chk=checkOk(v.text);v.ok=chk.ok;v.issue=chk.issue;responses.push(v);addLog(v.label+(chk.ok?'':' ⚠️ '+chk.issue),chk.ok,v.text);}else addMsg('warn','❌ Coder: '+S(r.reason?.message||'failed').slice(0,150));}
+    if(!responses.length){addMsg('warn','🚫 All coders failed.');ss('Failed','bad');return;}
+    setTyping('🔍 Reviewing code quality…');
+    let rd=null;try{rd=await mgrReview(p,responses,dcMgr);}catch{}
+    setTyping('');
+    if(rd?.reviews&&Array.isArray(rd.reviews)){addMsg('mgr','🔍 Code Review:\n'+rd.reviews.map(rv=>`• ${rv.label||'AI'}: ${rv.score||'?'}/10 ${rv.complete?'✅':'⚠️ '+S(rv.issue)}`).join('\n')+(rd.missing?'\n📌 Missing: '+rd.missing:''));rd.reviews.forEach(rv=>{if(typeof rv.idx==='number'&&rv.idx<responses.length)responses[rv.idx].score=rv.score||7;});}
+    await mgrAssemble(p,responses,rd,hist,memSnap,dcMgr,true);
+  }
+
+  async function runManaged(p,hist,memSnap,isDebate){
+    const workers=avail.filter(x=>x!==MGR_ID);
+    if(!workers.length){addMsg('warn','No workers. Check API keys.');ss('No workers','bad');return;}
+    addMsg('meta',(isDebate?'💬 Debate':'🎯 Managed')+' · Manager: '+S(RULES[MGR_ID]?.modelName||MGR_ID)+' · '+workers.length+' workers');
+    setTyping('💬 AIs discussing…');let proposals=[];try{proposals=await commsRound(p,workers);}catch{}setTyping('');if(proposals.length)addComm(proposals);
+    setTyping('📋 Planning…');let plan={plan:'Parallel',assignments:[]};try{plan=await mgrPlan(p,workers,proposals);}catch{}
+    const rawA=Array.isArray(plan?.assignments)?plan.assignments:[];
+    const va=rawA.filter(a=>a&&a.prov&&a.prov!==MGR_ID&&avail.includes(a.prov)&&a.subtask);
+    const fa=va.length?va:workers.slice(0,5).map(w=>({prov:w,subtask:p+'\n\nYou are '+S(RULES[w]?.modelName||w)+'. Give a complete, helpful answer.'}));
+    addMsg('mgr','📋 Plan: '+S(plan?.plan)+'\n\n'+fa.map(a=>`${RULES[a.prov]?.e||'·'} ${RULES[a.prov]?.modelName||a.prov}:\n  ${S(a.subtask).slice(0,80)}`).join('\n'));setTyping('');
+    setTyping(`⚙️ ${fa.length} workers responding…`);
+    const settled=await Promise.allSettled(fa.map(async a=>{const ans=await api(a.prov,buildSys(a.prov,a.subtask,memSnap),[...hist,{role:'user',content:S(a.subtask||p)}]);return{prov:a.prov,label:S(RULES[a.prov]?.modelName||a.prov)+' ('+S(RULES[a.prov]?.role||'AI')+')',sub:S(a.subtask||p),text:S(ans||''),score:7};}));
+    setTyping('');const responses=[];
+    for(const r of settled){if(r.status==='fulfilled'&&r.value){const v=r.value,chk=checkOk(v.text);v.ok=chk.ok;v.issue=chk.issue;responses.push(v);addLog(v.label,chk.ok,v.text);}else addMsg('warn','❌ Worker: '+S(r.reason?.message||'failed').slice(0,160));}
+    if(!responses.length){addMsg('warn','🚫 All failed.');ss('Failed','bad');return;}
+    setTyping('🔍 Reviewing…');let rd=null;try{rd=await mgrReview(p,responses);}catch{}setTyping('');
+    if(rd?.reviews&&Array.isArray(rd.reviews)){
+      addMsg('mgr','🔍 Review:\n'+rd.reviews.map(rv=>`• ${rv.label||'AI'}: ${rv.score||'?'}/10 ${rv.complete?'✅':'⚠️ '+S(rv.issue)}`).join('\n')+(rd.missing?'\n📌 Gap: '+rd.missing:''));
+      rd.reviews.forEach(rv=>{if(typeof rv.idx==='number'&&rv.idx<responses.length)responses[rv.idx].score=rv.score||7;});
+      let fc=0;
+      for(const rv of rd.reviews){
+        if(fc>=2)break;if(rv.complete||typeof rv.idx!=='number'||rv.idx>=responses.length)continue;
+        const resp=responses[rv.idx];if(!resp||!avail.includes(resp.prov))continue;
+        try{setTyping('🔄 Fixing '+S(RULES[resp.prov]?.modelName||resp.prov)+'…');const fix=await api(resp.prov,buildSys(resp.prov,resp.sub,memSnap)+'\nFix issue: "'+S(rv.issue||'incomplete')+'".',[...hist,{role:'user',content:'Fix issue "'+S(rv.issue)+'" in your response. Provide the complete corrected answer.'}]);responses[rv.idx].text+='\n[FIXED]\n'+S(fix);addMsg('mgr','🔄 '+S(RULES[resp.prov]?.modelName||resp.prov)+' fixed');fc++;setTyping('');}
+        catch(e2){addMsg('warn','❌ Fix: '+S(e2.message));setTyping('');}
+      }
+    }
+    if(isDebate&&responses.length>1){
+      addMsg('disc','💬 Debate — AIs reviewing each other');
+      for(let i=0;i<Math.min(responses.length,3);i++){
+        const rv=responses[(i+1)%responses.length],sb=responses[i];if(!rv||!sb||!avail.includes(rv.prov))continue;
+        try{setTyping('💬 '+S(RULES[rv.prov]?.modelName||rv.prov)+' → '+S(RULES[sb.prov]?.modelName||sb.prov)+'…');const disc=await api(rv.prov,buildSys(rv.prov,'',memSnap)+' Structured peer review.',[...hist,{role:'user',content:'Review this response to "'+S(p).slice(0,130)+'":\n\n'+S(sb.text).slice(0,380)+'\n\n1. What\'s good\n2. What\'s wrong\n3. Your complete improved answer'}]);addMsg('disc','💬 '+S(RULES[rv.prov]?.modelName)+' reviews '+S(RULES[sb.prov]?.modelName)+':\n\n'+S(disc));setTyping('');}
+        catch(e3){addMsg('warn','❌ Debate: '+S(e3.message));setTyping('');}
+      }
+    }
+    await mgrAssemble(p,responses,rd,hist,memSnap,MGR_ID,false);
+  }
+
+  const send=async()=>{
+    const p=inp.trim();if(!p||busy)return;
+    if(!activeId){await createChatFn();setTimeout(()=>{inpRef.current?.focus();},100);return;}
+    const hist=getHist(activeMsgs,3);
+    addMsg('user',p);setInp('');setBusy(true);ss('Thinking…','warn');
+    doMem(p,'user').then(addMem);
+    const memSnap=[...mem];
+    try{
+      if(activeMode==='deepcoder'){
+        await runDeepCoder(p,hist,memSnap);
+      }else if(activeMode==='managed'||activeMode==='debate'){
+        await runManaged(p,hist,memSnap,activeMode==='debate');
+      }else{
+        const order=[activePref,...avail.filter(x=>x!==activePref)];
+        addMsg('meta',(activeMode==='smart'?'🧠 Smart':'⚡ Fast')+' · '+S(RULES[activePref]?.modelName||activePref)+' · streaming');
+        for(const pid of order){
+          if(!avail.includes(pid))continue;
+          const t0=performance.now();let accumulated='';let firstChunk=true;
+          try{
+            setTyping((RULES[pid]?.e||'⟳')+' '+S(RULES[pid]?.modelName||pid)+'…');
+            await streamApi(pid,buildSys(pid,'',memSnap),[...hist,{role:'user',content:p}],RULES[pid]?.tok||2000,chunk=>{
+              if(firstChunk){setTyping('');firstChunk=false;}
+              accumulated+=chunk;setStreamBuf(accumulated);setStreamPid(pid);
+            });
+            setStreamBuf('');setStreamPid('');
+            if(accumulated){
+              addMsg('ai',S(RULES[pid]?.e||'·')+' '+S(RULES[pid]?.modelName||pid)+' ('+S(RULES[pid]?.role||'AI')+')\n\n'+accumulated);
+              ss('✓ '+S(RULES[pid]?.modelName||pid)+' · '+Math.round(performance.now()-t0)+'ms','good');
+              return;
+            }
+            throw new Error('Empty stream');
+          }catch(e){
+            setStreamBuf('');setStreamPid('');setTyping('');
+            if(accumulated){addMsg('ai',S(RULES[pid]?.e||'·')+' '+S(RULES[pid]?.modelName||pid)+'\n\n'+accumulated+'\n\n[⚠️ Stream interrupted]');ss('Partial response','warn');return;}
+            const em=S(e.message||'error');
+            if(/quota|rate|429|limit/i.test(em))addMsg('warn','⚠️ '+S(RULES[pid]?.modelName||pid)+': rate limited');
+            else addMsg('warn','❌ '+pid+': '+em);
+            if(activeMode==='fast')break;
+          }
+        }
+        if(activeMode!=='fast')addMsg('warn','🚫 All AIs failed. Check keys.');
+        ss('Done','good');
+      }
+    }catch(e){addMsg('warn','🚨 '+S(e?.message||'Unexpected error'));ss('Error','bad');}
+    finally{setBusy(false);setTyping('');setStreamBuf('');setStreamPid('');}
+  };
+
+  const MODES=[{k:'fast',l:'⚡ Fast'},{k:'smart',l:'🧠 Smart'},{k:'managed',l:'🎯 Managed'},{k:'debate',l:'💬 Debate'},{k:'deepcoder',l:'💻 DeepCoder'}];
+  const dc=stat.c==='good'?'#10b981':stat.c==='bad'?'#ef4444':'#f59e0b';
+  const isDC=activeMode==='deepcoder';
+  const activeTitle=chats.find(c=>c.id===activeId)?.title||'GoAi';
+  const SUGGESTIONS=['Explain quantum entanglement simply','Help me write a cover letter','Build a REST API in Node.js','Plan a 7-day Italy itinerary','Explain how mortgages work','Write a short bedtime story','Debug my Python code','Suggest healthy dinner ideas'];
+
+  return(
+    <div className="layout">
+      <Sidebar chats={chats} activeId={activeId} onNew={createChatFn} onSelect={selectChat} onDelete={deleteChat} onRename={renameChat} onAbout={()=>setAboutOpen(true)} open={sideOpen} provAvail={provAvail}/>
+
+      <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',height:'100%',overflow:'hidden'}}>
+
+        <div style={{flexShrink:0,padding:'8px 12px',borderBottom:'1px solid rgba(99,102,241,.07)',background:'rgba(1,3,13,.97)',backdropFilter:'blur(24px)',display:'flex',alignItems:'center',gap:8,zIndex:10}}>
+          <button onClick={()=>setSideOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',color:'#475569',fontSize:18,padding:'2px 6px',borderRadius:8,flexShrink:0,lineHeight:1,transition:'color .15s'}}>
+            {sideOpen?'◁':'≡'}
+          </button>
+          <div style={{width:1,height:18,background:'rgba(99,102,241,.11)',flexShrink:0}}/>
+          <div style={{minWidth:0,flex:1,overflow:'hidden'}}>
+            <div style={{fontSize:12,fontWeight:600,color:'#475569',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{activeTitle}</div>
+          </div>
+          <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+            <ModelPickerBtn pref={activePref} provs={provs} onClick={()=>setPickerOpen(true)}/>
+            <button onClick={()=>setMemOpen(true)} style={{background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.13)',borderRadius:16,padding:'4px 9px',cursor:'pointer',color:'#a5b4fc',fontSize:10,fontFamily:'inherit',transition:'all .15s'}}>🧠 {mem.length}</button>
+            <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,color:dc,flexShrink:0}}>
+              <span style={{width:5,height:5,borderRadius:'50%',background:dc,display:'inline-block',animation:busy?'blink 1s ease-in-out infinite':''}}/>
+              <span style={{maxWidth:80,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{stat.t}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{flexShrink:0,padding:'5px 10px',borderBottom:'1px solid rgba(99,102,241,.05)',background:'rgba(1,3,13,.9)',display:'flex',gap:4,alignItems:'center',overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+          {MODES.map(m=>{const isAct=activeMode===m.k;const isDCBtn=m.k==='deepcoder';return(<button key={m.k} className={`mbtn${isAct?(isDCBtn?' dc':' on'):''}`} onClick={()=>setMode(m.k)}>{m.l}</button>);})}
+          {isDC&&dcManagers.length>0&&<span style={{fontSize:8.5,color:'#92400e',background:'rgba(249,115,22,.07)',borderRadius:8,padding:'2px 8px',flexShrink:0,whiteSpace:'nowrap',marginLeft:4}}>🧠 {RULES[dcManagers[0]]?.modelName||dcManagers[0]} · {dcWorkers.length} workers</span>}
+        </div>
+
+        <div ref={chatRef} style={{flex:1,overflowY:'auto',padding:'14px 12px',display:'flex',flexDirection:'column',gap:9}}>
+          {activeMsgs.filter(m=>!m.isLog&&!m.isComm&&m.role).length===0&&activeMsgs.length===0&&(
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:16,textAlign:'center',padding:28}}>
+              <div style={{fontSize:46}}>🧩</div>
+              <div style={{fontFamily:"'Orbitron',monospace",fontWeight:900,fontSize:'1.35rem',background:'linear-gradient(135deg,#6366f1,#8b5cf6,#06b6d4)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent',letterSpacing:'-.3px'}}>GoAi v6.2</div>
+              <div style={{fontSize:11.5,color:'#334155',maxWidth:380,lineHeight:2}}>
+                Powered by <span style={{color:'#818cf8',fontWeight:700}}>MiniMax M1</span> · {Object.keys(RULES).length} models · Bytez restored<br/>
+                {isDC?<span style={{color:'#f97316'}}>💻 DeepSeek R1 leads a team of specialist coding AIs</span>:<span>Ask me anything — coding, writing, math, advice, or just chat</span>}
+              </div>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap',justifyContent:'center',maxWidth:440}}>
+                {SUGGESTIONS.map(s=>(<button key={s} onClick={()=>{setInp(s);inpRef.current?.focus();}} style={{background:'rgba(99,102,241,.04)',border:'1px solid rgba(99,102,241,.12)',borderRadius:18,padding:'5px 12px',cursor:'pointer',color:'#818cf8',fontSize:10.5,fontFamily:'inherit',transition:'all .15s'}}>{s}</button>))}
+              </div>
+            </div>
+          )}
+          {activeMsgs.map(msg=><Bubble key={msg.id} msg={msg} onPv={(code,lang)=>setPv({code,lang})}/>)}
+          {busy&&streamBuf&&<StreamBubble text={streamBuf} pid={streamPid}/>}
+          {busy&&typing&&!streamBuf&&<Typing text={typing}/>}
+        </div>
+
+        <div style={{flexShrink:0,padding:'8px 12px 11px',borderTop:'1px solid rgba(99,102,241,.07)',background:'rgba(1,3,13,.97)',backdropFilter:'blur(24px)'}}>
+          <div style={{display:'flex',gap:7,alignItems:'flex-end'}}>
+            <textarea ref={inpRef} value={inp}
+              onChange={e=>setInp(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}}
+              disabled={busy}
+              placeholder={isDC?'💻 Describe what to build… (DeepCoder mode)':'Ask anything… Enter = send · Shift+Enter = new line'}
+              style={{flex:1,background:'rgba(4,8,24,.82)',border:'1px solid '+(isDC?'rgba(249,115,22,.22)':'rgba(99,102,241,.16)'),borderRadius:16,padding:'9px 13px',color:'#e2e8f0',fontSize:13,resize:'none',minHeight:42,maxHeight:120,lineHeight:1.6,fontFamily:'inherit',outline:'none',transition:'border-color .2s,box-shadow .2s'}}
+              rows={1}
+            />
+            <button onClick={send} disabled={busy||!inp.trim()}
+              style={{background:busy||!inp.trim()?'rgba(99,102,241,.04)':isDC?'linear-gradient(135deg,#f97316,#ef4444)':'linear-gradient(135deg,#6366f1,#8b5cf6)',border:'none',borderRadius:14,padding:'9px 18px',cursor:busy||!inp.trim()?'not-allowed':'pointer',color:busy||!inp.trim()?'#334155':'#fff',fontWeight:700,fontSize:15,fontFamily:'inherit',flexShrink:0,boxShadow:!busy&&inp.trim()?(isDC?'0 4px 18px rgba(249,115,22,.32)':'0 4px 18px rgba(99,102,241,.3)'):'none',transition:'all .2s'}}>
+              {busy?<span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>⟳</span>:'→'}
+            </button>
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',marginTop:5,alignItems:'center'}}>
+            <span style={{fontSize:8,color:'#0f172a'}}>GoAi v6.2 · {provAvail} AIs · {activeMode} · MiniMax default · Made by Arush Kumar</span>
+            <button onClick={clearChat} style={{background:'none',border:'none',cursor:'pointer',color:'#0f172a',fontSize:8,fontFamily:'inherit'}}>🗑 Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <ModelSheet open={pickerOpen} onClose={()=>setPickerOpen(false)} provs={provs} pref={activePref} setPref={setPref}/>
+      <MemDrawer mem={mem} open={memOpen} onClose={()=>setMemOpen(false)} onClear={()=>{setMem([]);try{localStorage.removeItem('goai_mem');}catch{}}}/>
+      <PvModal pv={pv} onClose={()=>setPv(null)}/>
+      <AboutModal open={aboutOpen} onClose={()=>setAboutOpen(false)}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
+
