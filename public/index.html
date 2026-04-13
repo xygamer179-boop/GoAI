@@ -3,51 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GoAi · v6.3</title>
+<title>GoAi Visual v6.4</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
-:root{--bg:#020817;--sw:268px}
+:root{--bg:#020817;--sw:268px;--primary:#6366f1;--primary-rgb:99,102,241;--accent:#06b6d4;--success:#10b981;--warning:#f97316;--error:#ef4444}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%;overflow:hidden}
-body{background:var(--bg);color:#e2e8f0;font-family:'JetBrains Mono',monospace}
+body{background:var(--bg);color:#e2e8f0;font-family:'JetBrains Mono',monospace;letter-spacing:.2px}
 .layout{display:flex;height:100%;position:relative;z-index:1}
 .bg-fx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-.blob{position:absolute;border-radius:50%;filter:blur(120px)}
-.b1{width:700px;height:700px;background:radial-gradient(circle,rgba(139,92,246,.22),transparent 68%);top:-20%;left:-14%;animation:fl1 24s ease-in-out infinite alternate}
-.b2{width:600px;height:600px;background:radial-gradient(circle,rgba(6,182,212,.17),transparent 68%);top:42%;right:-12%;animation:fl2 31s ease-in-out infinite alternate}
-.b3{width:500px;height:500px;background:radial-gradient(circle,rgba(16,185,129,.14),transparent 68%);bottom:-14%;left:20%;animation:fl3 21s ease-in-out infinite alternate}
-.b4{width:360px;height:360px;background:radial-gradient(circle,rgba(99,102,241,.11),transparent 68%);top:20%;left:36%;animation:fl1 17s ease-in-out infinite alternate}
+.blob{position:absolute;border-radius:50%;filter:blur(120px);opacity:.7}
+.b1{width:700px;height:700px;background:radial-gradient(circle,rgba(139,92,246,.28),transparent 68%);top:-20%;left:-14%;animation:fl1 24s ease-in-out infinite alternate}
+.b2{width:600px;height:600px;background:radial-gradient(circle,rgba(6,182,212,.22),transparent 68%);top:42%;right:-12%;animation:fl2 31s ease-in-out infinite alternate}
+.b3{width:500px;height:500px;background:radial-gradient(circle,rgba(16,185,129,.18),transparent 68%);bottom:-14%;left:20%;animation:fl3 21s ease-in-out infinite alternate}
+.b4{width:360px;height:360px;background:radial-gradient(circle,rgba(99,102,241,.16),transparent 68%);top:20%;left:36%;animation:fl1 17s ease-in-out infinite alternate}
 @keyframes fl1{from{transform:translate(0,0) scale(1)}to{transform:translate(52px,46px) scale(1.11)}}
 @keyframes fl2{from{transform:translate(0,0) scale(1)}to{transform:translate(-46px,62px) scale(.91)}}
 @keyframes fl3{from{transform:translate(0,0) scale(1)}to{transform:translate(36px,-52px) scale(1.09)}}
-@keyframes msgIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes msgIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes blink{0%,80%,100%{opacity:.4}40%{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
-@keyframes cur{0%,100%{opacity:1}50%{opacity:0}}
-::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(99,102,241,.24);border-radius:2px}
-.bub:hover .cpb{opacity:1!important}
+@keyframes cur{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.8}}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(var(--primary-rgb),.32);border-radius:3px;transition:background .2s}
+::-webkit-scrollbar-thumb:hover{background:rgba(var(--primary-rgb),.5)}
+.bub:hover .cpb{opacity:1!important;transform:scale(1)}
 summary{list-style:none}summary::-webkit-details-marker{display:none}
-.ci{border-radius:12px;padding:7px 9px;cursor:pointer;margin-bottom:3px;border:1px solid transparent;transition:background .15s,border-color .15s;display:flex;align-items:center;gap:7px}
-.ci:hover{background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.15)}
-.ci.active{background:rgba(99,102,241,.16);border-color:rgba(99,102,241,.34)}
-.ci-btn{background:none;border:none;cursor:pointer;color:#1e293b;padding:2px 5px;flex-shrink:0;line-height:1;opacity:0;transition:opacity .15s,color .12s;border-radius:7px;font-size:11px}
+.ci{border-radius:14px;padding:10px 11px;cursor:pointer;margin-bottom:4px;border:1px solid transparent;transition:all .2s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;gap:8px;position:relative;overflow:hidden}
+.ci::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(6,182,212,.08));opacity:0;transition:opacity .2s;z-index:0}
+.ci:hover{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.24);box-shadow:0 4px 16px rgba(99,102,241,.12)}
+.ci:hover::before{opacity:1}
+.ci.active{background:rgba(99,102,241,.18);border-color:rgba(99,102,241,.4);box-shadow:0 6px 24px rgba(99,102,241,.16)}
+.ci>*{position:relative;z-index:1}
+.ci-btn{background:none;border:none;cursor:pointer;color:#1e293b;padding:4px 8px;flex-shrink:0;line-height:1;opacity:0;transition:all .2s;border-radius:8px;font-size:12px;display:flex;align-items:center;justify-content:center}
 .ci:hover .ci-btn,.ci.active .ci-btn{opacity:1}
-.ci-btn:hover{color:#a5b4fc!important;background:rgba(99,102,241,.14)}
-.mbtn{border-radius:18px;padding:4px 13px;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:400;transition:all .18s;flex-shrink:0;white-space:nowrap;border:1px solid rgba(99,102,241,.08);background:rgba(99,102,241,.03);color:#475569}
-.mbtn:hover{background:rgba(99,102,241,.1);color:#818cf8;border-color:rgba(99,102,241,.22)}
-.mbtn.on{font-weight:700;color:#c4b5fd;background:rgba(99,102,241,.22);border-color:rgba(99,102,241,.44);box-shadow:0 0 12px rgba(99,102,241,.18)}
-.mbtn.dc{color:#fdba74;background:rgba(249,115,22,.18);border-color:rgba(249,115,22,.45);box-shadow:0 0 14px rgba(249,115,22,.2)}
-.scur{display:inline-block;width:2px;height:13px;background:#818cf8;margin-left:2px;animation:cur .7s steps(1) infinite;vertical-align:text-bottom;border-radius:1px}
-.rainbow{height:3px;background:linear-gradient(90deg,#06b6d4,#8b5cf6,#10b981,#f97316,#ec4899,#06b6d4);background-size:200%;animation:shimmer 4s linear infinite}
-.grp-lbl{font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;padding:9px 12px 4px}
-textarea:focus,input:focus{box-shadow:0 0 0 2px rgba(99,102,241,.18)}
-button:active:not(:disabled){transform:scale(.97)}
+.ci-btn:hover{color:#c4b5fd!important;background:rgba(99,102,241,.2);transform:scale(1.1)}
+.mbtn{border-radius:20px;padding:6px 16px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:500;transition:all .22s cubic-bezier(.4,0,.2,1);flex-shrink:0;white-space:nowrap;border:1.2px solid rgba(var(--primary-rgb),.12);background:rgba(var(--primary-rgb),.05);color:#64748b;position:relative;overflow:hidden}
+.mbtn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(var(--primary-rgb),.1),rgba(139,92,246,.08));opacity:0;transition:opacity .22s}
+.mbtn:hover{background:rgba(var(--primary-rgb),.14);color:#a5b4fc;border-color:rgba(var(--primary-rgb),.28);box-shadow:0 4px 12px rgba(var(--primary-rgb),.15)}
+.mbtn:hover::before{opacity:1}
+.mbtn.on{font-weight:700;color:#c4b5fd;background:rgba(var(--primary-rgb),.22);border-color:rgba(var(--primary-rgb),.48);box-shadow:0 0 16px rgba(var(--primary-rgb),.2);transform:scale(1.02)}
+.mbtn.dc{color:#fdba74;background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.4);box-shadow:0 0 16px rgba(249,115,22,.18)}
+.scur{display:inline-block;width:2.4px;height:14px;background:#818cf8;margin-left:3px;animation:cur .7s steps(1) infinite;vertical-align:text-bottom;border-radius:1px;box-shadow:0 0 8px rgba(129,140,248,.4)}
+.rainbow{height:4px;background:linear-gradient(90deg,#06b6d4,#8b5cf6,#10b981,#f97316,#ec4899,#06b6d4);background-size:200%;animation:shimmer 4s linear infinite;box-shadow:0 2px 12px rgba(99,102,241,.12)}
+.grp-lbl{font-size:8.8px;letter-spacing:.15em;text-transform:uppercase;padding:12px 14px 6px;font-weight:600}
+textarea,input{transition:all .2s}
+textarea:focus,input:focus{box-shadow:0 0 0 3px rgba(var(--primary-rgb),.2);border-color:var(--primary)!important;outline:none}
+button:active:not(:disabled){transform:scale(.95)}
 </style>
 </head>
 <body>
@@ -58,6 +68,11 @@ const{useState,useEffect,useCallback,useRef,useMemo}=React;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const S=v=>String(v||'');
 const PREVL=new Set(['html','js','javascript','python','py','java','c','cpp','c++','ts','tsx','jsx','go','rust','php','rb','swift','kotlin','sql','bash','sh']);
+const dbg=(location,message,data,runId='initial',hypothesisId='H0')=>{
+  // #region agent log
+  fetch('http://127.0.0.1:7880/ingest/b4aa0dc1-ce20-4070-878b-61cf14bbca31',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3de006'},body:JSON.stringify({sessionId:'3de006',runId,hypothesisId,location,message,data,timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+};
 
 const DEFAULT_PREF='or_minimax';
 const MGR_ID='groq_llama33_70b_b';
@@ -145,6 +160,7 @@ async function api(pid,sys,msgs,tok){
   return d.text;
 }
 async function streamApi(pid,sys,msgs,tok,onChunk){
+  dbg('public/index.html:streamApi:entry','Client streamApi called',{provider:pid,messageCount:Array.isArray(msgs)?msgs.length:-1,maxTokens:tok||null},'initial','H3');
   const r=await fetch('/api/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:pid,systemPrompt:S(sys).slice(0,12000),messages:(msgs||[]).map(m=>({role:m.role,content:S(m.content).slice(0,18000)})),maxTokens:tok||RULES[pid]?.tok||2000})});
   if(!r.ok){let e='HTTP '+r.status;try{const d=await r.json();e=d.error||e;}catch{}throw new Error(e);}
   if(!r.body)throw new Error('No response body');
@@ -157,7 +173,12 @@ async function streamApi(pid,sys,msgs,tok,onChunk){
       if(!line.startsWith('data: '))continue;
       const pl=line.slice(6).trim();if(pl==='[DONE]')return;
       try{const d=JSON.parse(pl);if(d.error)throw new Error(d.error);if(d.text)onChunk(d.text);}
-      catch(e){if(e.message&&!e.message.includes('JSON'))throw e;}
+      catch(e){
+        if(e.message&&!e.message.includes('JSON')){
+          dbg('public/index.html:streamApi:parseCatch','Client stream parse failed',{provider:pid,error:S(e.message).slice(0,220)},'initial','H4');
+          throw e;
+        }
+      }
     }
   }
 }
@@ -247,12 +268,12 @@ function CommLog({comms}){
 function StreamBubble({text,pid}){
   const r=RULES[pid]||RULES[DEFAULT_PREF];
   return(
-    <div style={{maxWidth:'94%',alignSelf:'flex-start',animation:'msgIn .22s ease'}}>
-      <div style={{padding:'11px 14px',borderRadius:'6px 22px 22px 22px',background:'rgba(139,92,246,.07)',border:'1px solid rgba(139,92,246,.2)',lineHeight:1.75}}>
-        <div style={{fontSize:9.5,marginBottom:6,display:'flex',alignItems:'center',gap:5}}>
-          <span>{r.e}</span>
+    <div style={{maxWidth:'94%',alignSelf:'flex-start',animation:'msgIn .3s cubic-bezier(.4,0,.2,1)'}}>
+      <div style={{padding:'13px 16px',borderRadius:'6px 22px 22px 22px',background:'rgba(139,92,246,.08)',border:'1.2px solid rgba(139,92,246,.22)',lineHeight:1.8,boxShadow:'0 4px 16px rgba(139,92,246,.12)'}}>
+        <div style={{fontSize:9.8,marginBottom:8,display:'flex',alignItems:'center',gap:6,fontWeight:500}}>
+          <span style={{fontSize:15}}>{r.e}</span>
           <span style={{color:r.c||'#64748b',fontWeight:700}}>{r.modelName||pid}</span>
-          <span style={{color:'#334155',fontSize:8.5}}>streaming…</span>
+          <span style={{color:'#334155',fontSize:8.5}}>streaming</span>
         </div>
         <MsgContent text={text}/>
         <span className="scur"/>
@@ -266,14 +287,14 @@ function ModelPickerBtn({pref,provs,onClick}){
   const av=provs[pref]?.available;
   const isDefault=pref===DEFAULT_PREF;
   return(
-    <button onClick={onClick} style={{display:'flex',alignItems:'center',gap:6,background:isDefault?'rgba(99,102,241,.13)':'rgba(99,102,241,.07)',border:'1px solid '+(isDefault?'rgba(99,102,241,.34)':'rgba(99,102,241,.2)'),borderRadius:20,padding:'5px 11px 5px 8px',cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',flexShrink:0,maxWidth:195,transition:'all .18s'}}>
-      <span style={{width:6,height:6,borderRadius:'50%',background:av?'#10b981':'#334155',flexShrink:0,transition:'background .2s'}}/>
-      <span style={{fontSize:15,lineHeight:1,flexShrink:0}}>{cur.e||'·'}</span>
+    <button onClick={onClick} style={{display:'flex',alignItems:'center',gap:7,background:isDefault?'linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.1))':'rgba(99,102,241,.08)',border:'1.2px solid '+(isDefault?'rgba(99,102,241,.32)':'rgba(99,102,241,.22)'),borderRadius:20,padding:'6px 12px 6px 9px',cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',flexShrink:0,maxWidth:200,transition:'all .2s',boxShadow:isDefault?'0 4px 12px rgba(99,102,241,.14)':'0 2px 6px rgba(99,102,241,.08)',fontWeight:isDefault?600:500}}>
+      <span style={{width:7,height:7,borderRadius:'50%',background:av?'#10b981':'#475569',flexShrink:0,transition:'all .2s',boxShadow:av?'0 0 8px rgba(16,185,129,.4)':'none'}}/>
+      <span style={{fontSize:16,lineHeight:1,flexShrink:0}}>{cur.e||'·'}</span>
       <div style={{minWidth:0,textAlign:'left'}}>
-        <div style={{fontSize:11,fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cur.role||pref}</div>
-        <div style={{fontSize:8,opacity:.36,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cur.modelName||''}</div>
+        <div style={{fontSize:11.5,fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cur.role||pref}</div>
+        <div style={{fontSize:8.5,opacity:.42,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{cur.modelName||''}</div>
       </div>
-      <span style={{fontSize:9,opacity:.22,flexShrink:0}}>▾</span>
+      <span style={{fontSize:9,opacity:.28,flexShrink:0}}>▾</span>
     </button>
   );
 }
@@ -295,47 +316,47 @@ function ModelSheet({open,onClose,provs,pref,setPref}){
   const GC={OpenRouter:'#6366f1',Groq:'#06b6d4',Gemini:'#8b5cf6',GitHub:'#14b8a6',SambaNova:'#f97316',Bytez:'#84cc16',DuckDuckGo:'#ef4444'};
   return(
     <div style={{position:'fixed',inset:0,zIndex:9990,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
-      <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(0,0,0,.82)'}}/>
-      <div style={{position:'relative',background:'rgba(2,5,18,.99)',borderTop:'1px solid rgba(99,102,241,.34)',borderRadius:'22px 22px 0 0',maxHeight:'86vh',display:'flex',flexDirection:'column',animation:'slideUp .22s cubic-bezier(.4,0,.2,1)',boxShadow:'0 -20px 60px rgba(0,0,0,.92)'}}>
-        <div style={{width:36,height:4,background:'rgba(99,102,241,.26)',borderRadius:2,margin:'10px auto 0',flexShrink:0}}/>
-        <div style={{padding:'10px 15px 9px',flexShrink:0,borderBottom:'1px solid rgba(99,102,241,.08)'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+      <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(0,0,0,.84)',backdropFilter:'blur(8px)'}}/>
+      <div style={{position:'relative',background:'rgba(2,5,18,.99)',borderTop:'2px solid rgba(99,102,241,.32)',borderRadius:'28px 28px 0 0',maxHeight:'88vh',display:'flex',flexDirection:'column',animation:'slideUp .3s cubic-bezier(.4,0,.2,1)',boxShadow:'0 -20px 60px rgba(0,0,0,.5)'}}>
+        <div style={{width:40,height:5,background:'rgba(99,102,241,.28)',borderRadius:3,margin:'12px auto 0',flexShrink:0}}/>
+        <div style={{padding:'12px 16px 11px',flexShrink:0,borderBottom:'1px solid rgba(99,102,241,.1)'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:11}}>
             <div>
-              <div style={{fontWeight:900,color:'#a5b4fc',fontSize:14,fontFamily:"'Orbitron',monospace"}}>Select Model</div>
-              <div style={{fontSize:9,color:'#334155',marginTop:2}}>{avCount}/{Object.keys(provs).length} available · MiniMax M1 recommended</div>
+              <div style={{fontWeight:900,color:'#a5b4fc',fontSize:15,fontFamily:"'Orbitron',monospace"}}>Select Model</div>
+              <div style={{fontSize:9.5,color:'#475569',marginTop:3}}>{avCount}/{Object.keys(provs).length} available · MiniMax recommended</div>
             </div>
-            <button onClick={onClose} style={{background:'rgba(99,102,241,.09)',border:'1px solid rgba(99,102,241,.22)',borderRadius:14,padding:'4px 12px',cursor:'pointer',color:'#c4b5fd',fontSize:11,fontFamily:'inherit'}}>✕</button>
+            <button onClick={onClose} style={{background:'rgba(99,102,241,.1)',border:'1px solid rgba(99,102,241,.24)',borderRadius:14,padding:'5px 13px',cursor:'pointer',color:'#c4b5fd',fontSize:12,fontFamily:'inherit',fontWeight:600,transition:'all .2s'}}>✕</button>
           </div>
-          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search models…" style={{width:'100%',background:'rgba(5,10,28,.85)',border:'1px solid rgba(99,102,241,.16)',borderRadius:12,padding:'7px 12px',color:'#e2e8f0',fontSize:12,fontFamily:'inherit',outline:'none',transition:'border-color .2s'}}/>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search models…" style={{width:'100%',background:'rgba(5,10,28,.95)',border:'1.2px solid rgba(99,102,241,.18)',borderRadius:13,padding:'8px 13px',color:'#e2e8f0',fontSize:12.5,fontFamily:'inherit',outline:'none',transition:'all .2s',fontWeight:500}}/>
         </div>
-        <div style={{overflowY:'auto',padding:'4px 0 50px'}}>
+        <div style={{overflowY:'auto',padding:'6px 0 50px'}}>
           {ORDER.map(g=>{
             const items=groups[g];if(!items?.length)return null;
             return(
               <div key={g}>
-                <div className="grp-lbl" style={{color:GC[g]||'#334155'}}>{g} <span style={{color:'#1e293b',fontSize:8}}>({items.length})</span></div>
-                <div style={{padding:'0 9px',display:'flex',flexDirection:'column',gap:2}}>
+                <div className="grp-lbl" style={{color:GC[g]||'#475569'}}>{g} <span style={{color:'#1e293b',fontSize:'8.5px'}}>({items.length})</span></div>
+                <div style={{padding:'0 11px',display:'flex',flexDirection:'column',gap:3}}>
                   {items.map(({pid,info,r})=>{
                     const sel=pref===pid;
                     const isDef=pid===DEFAULT_PREF;
                     return(
                       <button key={pid} onClick={()=>{setPref(pid);onClose();setQ('');}}
-                        style={{display:'flex',alignItems:'center',gap:10,background:sel?'rgba(99,102,241,.19)':isDef?'rgba(99,102,241,.06)':'rgba(255,255,255,.014)',border:'1px solid '+(sel?'rgba(99,102,241,.46)':isDef?'rgba(99,102,241,.22)':'rgba(99,102,241,.05)'),borderRadius:12,padding:'9px 11px',cursor:'pointer',textAlign:'left',fontFamily:'inherit',width:'100%',transition:'all .14s'}}>
-                        <span style={{width:6,height:6,borderRadius:'50%',background:info.available?'#10b981':'#1e2d3d',boxShadow:info.available?'0 0 0 2px rgba(16,185,129,.16)':'none',flexShrink:0}}/>
-                        <span style={{fontSize:19,lineHeight:1,flexShrink:0,width:24,textAlign:'center'}}>{r.e||'·'}</span>
+                        style={{display:'flex',alignItems:'center',gap:11,background:sel?'rgba(99,102,241,.2)':isDef?'rgba(99,102,241,.08)':'rgba(255,255,255,.016)',border:'1.2px solid '+(sel?'rgba(99,102,241,.48)':isDef?'rgba(99,102,241,.24)':'rgba(99,102,241,.08)'),borderRadius:14,padding:'11px 13px',cursor:'pointer',textAlign:'left',fontFamily:'inherit',width:'100%',transition:'all .2s',boxShadow:sel?'0 4px 12px rgba(99,102,241,.16)':'none'}}>
+                        <span style={{width:7,height:7,borderRadius:'50%',background:info.available?'#10b981':'#1e2d3d',boxShadow:info.available?'0 0 10px rgba(16,185,129,.3)':'none',flexShrink:0}}/>
+                        <span style={{fontSize:20,lineHeight:1,flexShrink:0,width:26,textAlign:'center'}}>{r.e||'·'}</span>
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
-                            <span style={{fontSize:12,fontWeight:sel?700:500,color:sel?'#c4b5fd':'#e2e8f0'}}>{r.role||pid}</span>
-                            {isDef&&<span style={{fontSize:7,background:'rgba(99,102,241,.22)',borderRadius:5,padding:'0 5px',color:'#c4b5fd',fontWeight:700}}>DEFAULT</span>}
-                            {info.isManager&&<span style={{fontSize:7,background:'rgba(16,185,129,.14)',borderRadius:5,padding:'0 4px',color:'#6ee7b7',fontWeight:700}}>MGR</span>}
-                            {info.isDCManager&&<span style={{fontSize:7,background:'rgba(96,165,250,.13)',borderRadius:5,padding:'0 4px',color:'#93c5fd',fontWeight:700}}>DC-MGR</span>}
-                            {info.isDCWorker&&<span style={{fontSize:7,background:'rgba(249,115,22,.12)',borderRadius:5,padding:'0 4px',color:'#fdba74',fontWeight:700}}>DC-WRK</span>}
+                          <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+                            <span style={{fontSize:12.5,fontWeight:sel?700:600,color:sel?'#c4b5fd':'#e2e8f0'}}>{r.role||pid}</span>
+                            {isDef&&<span style={{fontSize:7.5,background:'rgba(99,102,241,.24)',borderRadius:6,padding:'1px 6px',color:'#c4b5fd',fontWeight:700}}>DEFAULT</span>}
+                            {info.isManager&&<span style={{fontSize:7.5,background:'rgba(16,185,129,.12)',borderRadius:6,padding:'1px 5px',color:'#6ee7b7',fontWeight:700}}>MGR</span>}
+                            {info.isDCManager&&<span style={{fontSize:7.5,background:'rgba(96,165,250,.14)',borderRadius:6,padding:'1px 5px',color:'#93c5fd',fontWeight:700}}>DC-MGR</span>}
+                            {info.isDCWorker&&<span style={{fontSize:7.5,background:'rgba(249,115,22,.14)',borderRadius:6,padding:'1px 5px',color:'#fdba74',fontWeight:700}}>DC-WRK</span>}
                           </div>
-                          <div style={{fontSize:9.5,marginTop:2}}><span style={{color:r.c||'#64748b'}}>{r.modelName||pid}</span><span style={{color:'#2d3748'}}> · {r.prov||''}</span></div>
-                          <div style={{fontSize:8.5,color:'#374151',marginTop:1}}>{r.s||''}</div>
+                          <div style={{fontSize:10,marginTop:2.5}}><span style={{color:r.c||'#64748b',fontWeight:600}}>{r.modelName||pid}</span><span style={{color:'#334155',fontSize:9}}> · {r.prov||''}</span></div>
+                          <div style={{fontSize:8.8,color:'#475569',marginTop:1.5}}>{r.s||''}</div>
                         </div>
-                        {sel&&<span style={{color:'#818cf8',fontSize:13,flexShrink:0}}>✓</span>}
-                        {!info.available&&<span style={{fontSize:8,color:'#2d3748',flexShrink:0,background:'rgba(30,41,59,.5)',borderRadius:5,padding:'1px 5px'}}>no key</span>}
+                        {sel&&<span style={{color:'#818cf8',fontSize:14,flexShrink:0,fontWeight:700}}>✓</span>}
+                        {!info.available&&<span style={{fontSize:8.5,color:'#475569',flexShrink:0,background:'rgba(30,41,59,.5)',borderRadius:6,padding:'2px 6px',fontWeight:500}}>no key</span>}
                       </button>
                     );
                   })}
@@ -452,19 +473,19 @@ function ChatItem({chat,active,onSelect,onDelete,onRename}){
           onBlur={commit}
           onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();commit();}if(e.key==='Escape'){setEditing(false);setVal(chat.title||'New Chat');}}}
           onClick={e=>e.stopPropagation()}
-          style={{flex:1,background:'rgba(99,102,241,.1)',border:'1px solid rgba(99,102,241,.3)',borderRadius:8,padding:'3px 7px',color:'#c4b5fd',fontFamily:'inherit',fontSize:11,outline:'none',minWidth:0}}
+          style={{flex:1,background:'rgba(99,102,241,.12)',border:'1.2px solid rgba(99,102,241,.32)',borderRadius:10,padding:'5px 9px',color:'#c4b5fd',fontFamily:'inherit',fontSize:11.5,outline:'none',minWidth:0,fontWeight:500}}
         />
       ):(
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:11.5,color:active?'#c4b5fd':'#94a3b8',fontWeight:active?700:400,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{chat.title||'New Chat'}</div>
-          <div style={{fontSize:8.5,color:'#1e293b',marginTop:1,display:'flex',gap:4}}>
-            <span>{fmt(chat.updated_at)}</span><span>·</span><span>{chat.msg_count||0} msgs</span>
+          <div style={{fontSize:12,color:active?'#c4b5fd':'#94a3b8',fontWeight:active?700:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{chat.title||'New Chat'}</div>
+          <div style={{fontSize:8.5,color:'#334155',marginTop:2,display:'flex',gap:5}}>
+            <span>{fmt(chat.updated_at)}</span><span>·</span><span>{chat.msg_count||0} msg</span>
           </div>
         </div>
       )}
       {!editing&&<>
         <button className="ci-btn" onClick={e=>{e.stopPropagation();setEditing(true);}} title="Rename">✏️</button>
-        <button className="ci-btn" onClick={e=>{e.stopPropagation();onDelete(chat.id);}} title="Delete" style={{fontSize:15}}>×</button>
+        <button className="ci-btn" onClick={e=>{e.stopPropagation();onDelete(chat.id);}} title="Delete" style={{fontSize:16}}>×</button>
       </>}
     </div>
   );
@@ -472,29 +493,29 @@ function ChatItem({chat,active,onSelect,onDelete,onRename}){
 
 function Sidebar({chats,activeId,onNew,onSelect,onDelete,onRename,onAbout,open,provAvail}){
   return(
-    <div style={{width:open?'var(--sw)':'0',flexShrink:0,overflow:'hidden',transition:'width .28s cubic-bezier(.4,0,.2,1)',background:'rgba(1,3,13,.97)',borderRight:'1px solid rgba(99,102,241,.07)',position:'relative',zIndex:50}}>
+    <div style={{width:open?'var(--sw)':'0',flexShrink:0,overflow:'hidden',transition:'width .28s cubic-bezier(.4,0,.2,1)',background:'rgba(1,3,13,.98)',borderRight:'1px solid rgba(99,102,241,.1)',position:'relative',zIndex:50,boxShadow:open?'4px 0 24px rgba(0,0,0,.4)':'none'}}>
       <div style={{width:'var(--sw)',height:'100%',display:'flex',flexDirection:'column',minWidth:0}}>
-        <div style={{padding:'15px 15px 11px',borderBottom:'1px solid rgba(99,102,241,.07)',flexShrink:0}}>
-          <div style={{fontFamily:"'Orbitron',monospace",fontSize:'1.1rem',fontWeight:900,background:'linear-gradient(135deg,#06b6d4,#8b5cf6)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent',marginBottom:2}}>⚡ GoAi</div>
-          <div style={{fontSize:8,color:'#0f172a',letterSpacing:'.14em'}}>{provAvail} PROVIDERS · STREAMING</div>
+        <div style={{padding:'18px 16px 13px',borderBottom:'1px solid rgba(99,102,241,.1)',flexShrink:0,background:'rgba(99,102,241,.03)'}}>
+          <div style={{fontFamily:"'Orbitron',monospace",fontSize:'1.15rem',fontWeight:900,background:'linear-gradient(135deg,#06b6d4,#8b5cf6)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent',marginBottom:3,letterSpacing:'-0.5px'}}>⚡ GoAi</div>
+          <div style={{fontSize:8.5,color:'#475569',letterSpacing:'.14em',fontWeight:500}}>{provAvail} PROVIDERS · STREAMING</div>
         </div>
-        <div style={{padding:'9px 10px 5px',flexShrink:0}}>
-          <button onClick={onNew} style={{width:'100%',background:'linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.08))',border:'1px solid rgba(99,102,241,.22)',borderRadius:12,padding:'9px 12px',cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',fontSize:11.5,fontWeight:700,display:'flex',alignItems:'center',gap:8,justifyContent:'center',transition:'all .18s'}}>
-            <span style={{fontSize:16,lineHeight:1}}>＋</span> New Chat
+        <div style={{padding:'11px 12px 7px',flexShrink:0}}>
+          <button onClick={onNew} style={{width:'100%',background:'linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.1))',border:'1.2px solid rgba(99,102,241,.26)',borderRadius:14,padding:'11px 14px',cursor:'pointer',color:'#c4b5fd',fontFamily:'inherit',fontSize:12,fontWeight:700,display:'flex',alignItems:'center',gap:9,justifyContent:'center',transition:'all .2s',boxShadow:'0 4px 12px rgba(99,102,241,.12)'}}>
+            <span style={{fontSize:17,lineHeight:1}}>＋</span> New Chat
           </button>
         </div>
-        {chats.length>0&&<div style={{padding:'8px 14px 3px',fontSize:8,color:'#0f172a',letterSpacing:'.12em',textTransform:'uppercase',flexShrink:0}}>Chats ({chats.length})</div>}
-        <div style={{flex:1,overflowY:'auto',padding:'2px 8px 6px'}}>
-          {!chats.length&&<div style={{color:'#1e293b',fontSize:11,textAlign:'center',marginTop:34,fontStyle:'italic'}}>No chats yet</div>}
+        {chats.length>0&&<div style={{padding:'10px 16px 4px',fontSize:8.5,color:'#475569',letterSpacing:'.12em',textTransform:'uppercase',flexShrink:0,fontWeight:600}}>Chats ({chats.length})</div>}
+        <div style={{flex:1,overflowY:'auto',padding:'4px 10px 8px'}}>
+          {!chats.length&&<div style={{color:'#334155',fontSize:11,textAlign:'center',marginTop:40,fontStyle:'italic'}}>No chats yet</div>}
           {[...chats].sort((a,b)=>b.updated_at-a.updated_at).map(c=>(
             <ChatItem key={c.id} chat={c} active={c.id===activeId} onSelect={onSelect} onDelete={onDelete} onRename={onRename}/>
           ))}
         </div>
-        <div style={{borderTop:'1px solid rgba(99,102,241,.07)',padding:'8px 10px',flexShrink:0,display:'flex',flexDirection:'column',gap:4}}>
-          <button onClick={onAbout} style={{background:'none',border:'1px solid rgba(99,102,241,.09)',borderRadius:11,padding:'7px 12px',cursor:'pointer',color:'#475569',fontFamily:'inherit',fontSize:11,textAlign:'left',display:'flex',alignItems:'center',gap:8,transition:'all .15s'}}>
+        <div style={{borderTop:'1px solid rgba(99,102,241,.1)',padding:'10px 12px',flexShrink:0,display:'flex',flexDirection:'column',gap:5,background:'rgba(99,102,241,.02)'}}>
+          <button onClick={onAbout} style={{background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.15)',borderRadius:12,padding:'9px 13px',cursor:'pointer',color:'#818cf8',fontFamily:'inherit',fontSize:11,textAlign:'left',display:'flex',alignItems:'center',gap:9,transition:'all .2s',fontWeight:500}}>
             <span>ℹ️</span> About GoAi
           </button>
-          <div style={{fontSize:8,color:'#0f172a',textAlign:'center'}}>Made by Arush Kumar · v6.2</div>
+          <div style={{fontSize:8.5,color:'#334155',textAlign:'center',fontWeight:500}}>Made by Arush · v6.3</div>
         </div>
       </div>
     </div>
@@ -503,9 +524,9 @@ function Sidebar({chats,activeId,onNew,onSelect,onDelete,onRename,onAbout,open,p
 
 function Typing({text}){
   return(
-    <div style={{alignSelf:'flex-start',display:'flex',alignItems:'center',gap:9,padding:'8px 14px',background:'rgba(99,102,241,.04)',border:'1px solid rgba(99,102,241,.1)',borderRadius:'6px 18px 18px 18px',fontSize:12,color:'#64748b',animation:'msgIn .2s ease',maxWidth:'92%'}}>
-      <div style={{display:'flex',gap:4,flexShrink:0}}>{[0,1,2].map(i=><span key={i} style={{width:5,height:5,borderRadius:'50%',background:'#818cf8',display:'inline-block',animation:'blink 1.4s ease-in-out infinite',animationDelay:i*.22+'s'}}/>)}</div>
-      <span style={{fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:265}}>{text||'…'}</span>
+    <div style={{alignSelf:'flex-start',display:'flex',alignItems:'center',gap:11,padding:'10px 16px',background:'rgba(99,102,241,.06)',border:'1.2px solid rgba(99,102,241,.18)',borderRadius:'6px 18px 18px 18px',fontSize:12.5,color:'#64748b',animation:'msgIn .3s cubic-bezier(.4,0,.2,1)',maxWidth:'92%',fontWeight:500,boxShadow:'0 2px 8px rgba(99,102,241,.08)'}}>
+      <div style={{display:'flex',gap:5,flexShrink:0,alignItems:'center'}}>{[0,1,2].map(i=><span key={i} style={{width:6,height:6,borderRadius:'50%',background:'#818cf8',display:'inline-block',animation:'blink 1.4s ease-in-out infinite',animationDelay:i*.22+'s',boxShadow:'0 0 4px rgba(129,140,248,.4)'}}/>)}</div>
+      <span style={{fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:280}}>{text||'Processing…'}</span>
     </div>
   );
 }
@@ -524,12 +545,12 @@ function Bubble({msg,onPv}){
   if(msg.isComm)return<CommLog comms={msg.comms||[]}/>;
   const b=BS[msg.role]||BS.meta;
   return(
-    <div className="bub" style={{maxWidth:'94%',alignSelf:b.se||'flex-start',animation:'msgIn .22s ease',position:'relative'}}>
-      <div style={{padding:'11px 14px',borderRadius:b.br||'6px 22px 22px 22px',background:b.bg||'transparent',border:'1px solid '+(b.bd||'transparent'),color:b.tc||'#e2e8f0',fontStyle:b.fi||'normal',lineHeight:1.78}}>
+    <div className="bub" style={{maxWidth:'94%',alignSelf:b.se||'flex-start',animation:'msgIn .3s cubic-bezier(.4,0,.2,1)',position:'relative'}}>
+      <div style={{padding:'12px 15px',borderRadius:b.br||'6px 22px 22px 22px',background:b.bg||'transparent',border:'1.2px solid '+(b.bd||'transparent'),color:b.tc||'#e2e8f0',fontStyle:b.fi||'normal',lineHeight:1.8,boxShadow:'0 4px 16px '+b.bg.replace(/[\d.]+\)/,'.08)').replace('rgba','rgba')||'none'}}>
         <MsgContent text={S(msg.text)} onPv={onPv}/>
       </div>
       {msg.role!=='meta'&&msg.role!=='warn'&&msg.text&&(
-        <button className="cpb" onClick={()=>{try{navigator.clipboard.writeText(S(msg.text));}catch{}setCpd(true);setTimeout(()=>setCpd(false),1400);}} style={{position:'absolute',top:6,right:6,opacity:0,background:'rgba(4,8,22,.96)',border:'1px solid rgba(99,102,241,.22)',borderRadius:10,padding:'2px 8px',fontSize:9,cursor:'pointer',color:'#a5b4fc',transition:'opacity .18s'}}>{cpd?'✅':'📋'}</button>
+        <button className="cpb" onClick={()=>{try{navigator.clipboard.writeText(S(msg.text));}catch{}setCpd(true);setTimeout(()=>setCpd(false),1400);}} style={{position:'absolute',top:8,right:8,opacity:0,background:'rgba(4,8,22,.96)',border:'1px solid rgba(99,102,241,.28)',borderRadius:11,padding:'3px 9px',fontSize:10,cursor:'pointer',color:'#a5b4fc',transition:'all .18s',fontWeight:500,boxShadow:'0 2px 8px rgba(0,0,0,.3)'}}>{cpd?'✅ Copied':'📋'}</button>
       )}
     </div>
   );
@@ -784,6 +805,7 @@ function App(){
 
   const send=async()=>{
     const p=inp.trim();if(!p||busy)return;
+    dbg('public/index.html:send:entry','Send invoked from UI',{activeMode,activePref,inputLength:p.length,activeId:activeId||null},'initial','H5');
     if(!activeId){await createChatFn();setTimeout(()=>{inpRef.current?.focus();},100);return;}
     const hist=getHist(activeMsgs,3);
     addMsg('user',p);setInp('');setBusy(true);ss('Thinking…','warn');
@@ -815,6 +837,7 @@ function App(){
             throw new Error('Empty stream');
           }catch(e){
             setStreamBuf('');setStreamPid('');setTyping('');
+            dbg('public/index.html:send:streamCatch','UI stream path failed',{provider:pid,error:S(e.message||'error').slice(0,220),mode:activeMode},'initial','H4');
             if(accumulated){addMsg('ai',S(RULES[pid]?.e||'·')+' '+S(RULES[pid]?.modelName||pid)+'\n\n'+accumulated+'\n\n[⚠️ Stream interrupted]');ss('Partial response','warn');return;}
             const em=S(e.message||'error');
             if(/quota|rate|429|limit/i.test(em))addMsg('warn','⚠️ '+S(RULES[pid]?.modelName||pid)+': rate limited');
@@ -841,40 +864,42 @@ function App(){
 
       <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',height:'100%',overflow:'hidden'}}>
 
-        <div style={{flexShrink:0,padding:'8px 12px',borderBottom:'1px solid rgba(99,102,241,.07)',background:'rgba(1,3,13,.97)',backdropFilter:'blur(24px)',display:'flex',alignItems:'center',gap:8,zIndex:10}}>
-          <button onClick={()=>setSideOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',color:'#475569',fontSize:18,padding:'2px 6px',borderRadius:8,flexShrink:0,lineHeight:1,transition:'color .15s'}}>
+        <div style={{flexShrink:0,padding:'10px 14px',borderBottom:'1px solid rgba(99,102,241,.11)',background:'rgba(1,3,13,.99)',backdropFilter:'blur(30px)',display:'flex',alignItems:'center',gap:10,zIndex:10,boxShadow:'0 4px 12px rgba(0,0,0,.3)'}}>
+          <button onClick={()=>setSideOpen(v=>!v)} style={{background:'rgba(99,102,241,.05)',border:'1px solid rgba(99,102,241,.1)',cursor:'pointer',color:'#818cf8',fontSize:16,padding:'5px 8px',borderRadius:10,flexShrink:0,lineHeight:1,transition:'all .2s',display:'flex',alignItems:'center',justifyContent:'center'}}>
             {sideOpen?'◁':'≡'}
           </button>
-          <div style={{width:1,height:18,background:'rgba(99,102,241,.11)',flexShrink:0}}/>
+          <div style={{width:1.5,height:20,background:'rgba(99,102,241,.15)',flexShrink:0,borderRadius:1}}/>
           <div style={{minWidth:0,flex:1,overflow:'hidden'}}>
-            <div style={{fontSize:12,fontWeight:600,color:'#475569',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{activeTitle}</div>
+            <div style={{fontSize:12.5,fontWeight:700,color:'#cbd5e1',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{activeTitle}</div>
           </div>
-          <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+          <div style={{display:'flex',gap:8,alignItems:'center',flexShrink:0}}>
             <ModelPickerBtn pref={activePref} provs={provs} onClick={()=>setPickerOpen(true)}/>
-            <button onClick={()=>setMemOpen(true)} style={{background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.13)',borderRadius:16,padding:'4px 9px',cursor:'pointer',color:'#a5b4fc',fontSize:10,fontFamily:'inherit',transition:'all .15s'}}>🧠 {mem.length}</button>
-            <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,color:dc,flexShrink:0}}>
-              <span style={{width:5,height:5,borderRadius:'50%',background:dc,display:'inline-block',animation:busy?'blink 1s ease-in-out infinite':''}}/>
-              <span style={{maxWidth:80,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{stat.t}</span>
+            <button onClick={()=>setMemOpen(true)} style={{background:'rgba(99,102,241,.07)',border:'1px solid rgba(99,102,241,.18)',borderRadius:16,padding:'6px 11px',cursor:'pointer',color:'#a5b4fc',fontSize:11,fontFamily:'inherit',transition:'all .2s',display:'flex',alignItems:'center',gap:4,fontWeight:500,boxShadow:'0 2px 8px rgba(99,102,241,.08)'}}>
+              <span>🧠</span><span>{mem.length}</span>
+            </button>
+            <div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:dc,flexShrink:0,background:'rgba(99,102,241,.04)',border:'1px solid rgba(99,102,241,.12)',borderRadius:12,padding:'5px 10px',fontWeight:500}}>
+              <span style={{width:6,height:6,borderRadius:'50%',background:dc,display:'inline-block',animation:busy?'pulse 1.2s ease-in-out infinite':'',boxShadow:'0 0 6px '+dc}}/>
+              <span style={{maxWidth:100,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{stat.t}</span>
             </div>
           </div>
         </div>
 
-        <div style={{flexShrink:0,padding:'5px 10px',borderBottom:'1px solid rgba(99,102,241,.05)',background:'rgba(1,3,13,.9)',display:'flex',gap:4,alignItems:'center',overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
-          {MODES.map(m=>{const isAct=activeMode===m.k;const isDCBtn=m.k==='deepcoder';return(<button key={m.k} className={`mbtn${isAct?(isDCBtn?' dc':' on'):''}`} onClick={()=>setMode(m.k)}>{m.l}</button>);})}
-          {isDC&&dcManagers.length>0&&<span style={{fontSize:8.5,color:'#92400e',background:'rgba(249,115,22,.07)',borderRadius:8,padding:'2px 8px',flexShrink:0,whiteSpace:'nowrap',marginLeft:4}}>🧠 {RULES[dcManagers[0]]?.modelName||dcManagers[0]} · {dcWorkers.length} workers</span>}
+        <div style={{flexShrink:0,padding:'8px 12px',borderBottom:'1px solid rgba(99,102,241,.09)',background:'rgba(1,3,13,.95)',display:'flex',gap:6,alignItems:'center',overflowX:'auto',WebkitOverflowScrolling:'touch',boxShadow:'0 2px 8px rgba(0,0,0,.2)'}}>
+          {MODES.map(m=>{const isAct=activeMode===m.k;const isDCBtn=m.k==='deepcoder';return(<button key={m.k} className={`mbtn${isAct?(isDCBtn?' dc':' on'):''}`} onClick={()=>setMode(m.k)} style={{flex:'0 0 auto'}}>{m.l}</button>);})}
+          {isDC&&dcManagers.length>0&&<span style={{fontSize:9,color:'#fdba74',background:'rgba(249,115,22,.12)',border:'1px solid rgba(249,115,22,.2)',borderRadius:10,padding:'4px 10px',flexShrink:0,whiteSpace:'nowrap',marginLeft:6,fontWeight:500,boxShadow:'0 2px 6px rgba(249,115,22,.08)'}}>🧠 {RULES[dcManagers[0]]?.modelName||dcManagers[0]} · {dcWorkers.length} workers</span>}
         </div>
 
-        <div ref={chatRef} style={{flex:1,overflowY:'auto',padding:'14px 12px',display:'flex',flexDirection:'column',gap:9}}>
+        <div ref={chatRef} style={{flex:1,overflowY:'auto',padding:'16px 14px',display:'flex',flexDirection:'column',gap:11}}>
           {activeMsgs.filter(m=>!m.isLog&&!m.isComm&&m.role).length===0&&activeMsgs.length===0&&(
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:16,textAlign:'center',padding:28}}>
-              <div style={{fontSize:46}}>🧩</div>
-              <div style={{fontFamily:"'Orbitron',monospace",fontWeight:900,fontSize:'1.35rem',background:'linear-gradient(135deg,#6366f1,#8b5cf6,#06b6d4)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent',letterSpacing:'-.3px'}}>GoAi v6.2</div>
-              <div style={{fontSize:11.5,color:'#334155',maxWidth:380,lineHeight:2}}>
-                Powered by <span style={{color:'#818cf8',fontWeight:700}}>MiniMax M1</span> · {Object.keys(RULES).length} models · Bytez restored<br/>
-                {isDC?<span style={{color:'#f97316'}}>💻 DeepSeek R1 leads a team of specialist coding AIs</span>:<span>Ask me anything — coding, writing, math, advice, or just chat</span>}
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:18,textAlign:'center',padding:32}}>
+              <div style={{fontSize:58,lineHeight:1,animation:'pulse 3s ease-in-out infinite'}}>🧩</div>
+              <div style={{fontFamily:"'Orbitron',monospace",fontWeight:900,fontSize:'1.45rem',background:'linear-gradient(135deg,#6366f1,#8b5cf6,#06b6d4)',WebkitBackgroundClip:'text',backgroundClip:'text',color:'transparent',letterSpacing:'-.4px'}}>GoAi v6.3</div>
+              <div style={{fontSize:12,color:'#475569',maxWidth:400,lineHeight:2.2}}>
+                Powered by <span style={{color:'#818cf8',fontWeight:700}}>MiniMax M1</span> · {Object.keys(RULES).length} models · Multi-AI orchestration<br/>
+                {isDC?<span style={{color:'#fdba74',fontWeight:600}}>💻 DeepSeek R1 leads specialist coding agents</span>:<span>Ask me anything — coding, writing, math, advice, or creative exploration</span>}
               </div>
-              <div style={{display:'flex',gap:6,flexWrap:'wrap',justifyContent:'center',maxWidth:440}}>
-                {SUGGESTIONS.map(s=>(<button key={s} onClick={()=>{setInp(s);inpRef.current?.focus();}} style={{background:'rgba(99,102,241,.04)',border:'1px solid rgba(99,102,241,.12)',borderRadius:18,padding:'5px 12px',cursor:'pointer',color:'#818cf8',fontSize:10.5,fontFamily:'inherit',transition:'all .15s'}}>{s}</button>))}
+              <div style={{display:'flex',gap:7,flexWrap:'wrap',justifyContent:'center',maxWidth:480,marginTop:6}}>
+                {SUGGESTIONS.map(s=>(<button key={s} onClick={()=>{setInp(s);inpRef.current?.focus();}} style={{background:'rgba(99,102,241,.06)',border:'1px solid rgba(99,102,241,.18)',borderRadius:20,padding:'7px 14px',cursor:'pointer',color:'#818cf8',fontSize:11,fontFamily:'inherit',transition:'all .2s',fontWeight:500,boxShadow:'0 2px 6px rgba(99,102,241,.08)'}}  onMouseEnter={e=>{e.target.style.background='rgba(99,102,241,.14)';e.target.style.borderColor='rgba(99,102,241,.32)';}} onMouseLeave={e=>{e.target.style.background='rgba(99,102,241,.06)';e.target.style.borderColor='rgba(99,102,241,.18)';}}>{s}</button>))}
               </div>
             </div>
           )}
@@ -883,24 +908,25 @@ function App(){
           {busy&&typing&&!streamBuf&&<Typing text={typing}/>}
         </div>
 
-        <div style={{flexShrink:0,padding:'8px 12px 11px',borderTop:'1px solid rgba(99,102,241,.07)',background:'rgba(1,3,13,.97)',backdropFilter:'blur(24px)'}}>
-          <div style={{display:'flex',gap:7,alignItems:'flex-end'}}>
+        <div style={{flexShrink:0,padding:'12px 14px 14px',borderTop:'1px solid rgba(99,102,241,.11)',background:'rgba(1,3,13,.99)',backdropFilter:'blur(30px)',boxShadow:'0 -4px 12px rgba(0,0,0,.3)'}}>
+          <div style={{display:'flex',gap:9,alignItems:'flex-end'}}>
             <textarea ref={inpRef} value={inp}
               onChange={e=>setInp(e.target.value)}
               onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}}
               disabled={busy}
               placeholder={isDC?'💻 Describe what to build… (DeepCoder mode)':'Ask anything… Enter = send · Shift+Enter = new line'}
-              style={{flex:1,background:'rgba(4,8,24,.82)',border:'1px solid '+(isDC?'rgba(249,115,22,.22)':'rgba(99,102,241,.16)'),borderRadius:16,padding:'9px 13px',color:'#e2e8f0',fontSize:13,resize:'none',minHeight:42,maxHeight:120,lineHeight:1.6,fontFamily:'inherit',outline:'none',transition:'border-color .2s,box-shadow .2s'}}
+              style={{flex:1,background:'rgba(4,8,24,.9)',border:'1.5px solid '+(isDC?'rgba(249,115,22,.24)':'rgba(99,102,241,.22)'),borderRadius:18,padding:'11px 15px',color:'#e2e8f0',fontSize:13.5,resize:'none',minHeight:44,maxHeight:140,lineHeight:1.7,fontFamily:'inherit',outline:'none',transition:'all .2s',boxShadow:'0 2px 8px rgba(0,0,0,.2)','::placeholder':{color:'#475569'}}}
               rows={1}
             />
             <button onClick={send} disabled={busy||!inp.trim()}
-              style={{background:busy||!inp.trim()?'rgba(99,102,241,.04)':isDC?'linear-gradient(135deg,#f97316,#ef4444)':'linear-gradient(135deg,#6366f1,#8b5cf6)',border:'none',borderRadius:14,padding:'9px 18px',cursor:busy||!inp.trim()?'not-allowed':'pointer',color:busy||!inp.trim()?'#334155':'#fff',fontWeight:700,fontSize:15,fontFamily:'inherit',flexShrink:0,boxShadow:!busy&&inp.trim()?(isDC?'0 4px 18px rgba(249,115,22,.32)':'0 4px 18px rgba(99,102,241,.3)'):'none',transition:'all .2s'}}>
-              {busy?<span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>⟳</span>:'→'}
+              style={{background:busy||!inp.trim()?'rgba(99,102,241,.06)':isDC?'linear-gradient(135deg,#f97316 0%,#ef4444 100%)':'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%))',border:'none',borderRadius:16,padding:'11px 20px',cursor:busy||!inp.trim()?'not-allowed':'pointer',color:busy||!inp.trim()?'#334155':'#fff',fontWeight:800,fontSize:16,fontFamily:'inherit',flexShrink:0,boxShadow:!busy&&inp.trim()?(isDC?'0 6px 20px rgba(249,115,22,.32)':'0 6px 20px rgba(99,102,241,.36)'):'none',transition:'all .24s cubic-bezier(.4,0,.2,1)',display:'flex',alignItems:'center',justifyContent:'center',whiteSpace:'nowrap'}}
+            >
+              {busy?<span style={{display:'inline-block',animation:'spin 0.8s linear infinite',fontSize:17}}>⟳</span>:'→'}
             </button>
           </div>
-          <div style={{display:'flex',justifyContent:'space-between',marginTop:5,alignItems:'center'}}>
-            <span style={{fontSize:8,color:'#0f172a'}}>GoAi v6.3 · {provAvail} AIs · {activeMode} · MiniMax default · Made by Arush Kumar</span>
-            <button onClick={clearChat} style={{background:'none',border:'none',cursor:'pointer',color:'#0f172a',fontSize:8,fontFamily:'inherit'}}>🗑 Clear</button>
+          <div style={{display:'flex',justifyContent:'space-between',marginTop:7,alignItems:'center',fontSize:9,color:'#334155,lineHeight:1.6'}}>
+            <span>GoAi v6.3 · {provAvail} AIs · {activeMode} · MiniMax default</span>
+            <button onClick={clearChat} style={{background:'none',border:'none',cursor:'pointer',color:'#475569',fontSize:9,fontFamily:'inherit',padding:'2px 4px',borderRadius:6,transition:'all .2s'}}  onMouseEnter={e=>e.target.style.color='#ef4444'} onMouseLeave={e=>e.target.style.color='#475569'}>🗑 Clear</button>
           </div>
         </div>
       </div>
@@ -917,4 +943,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
-
